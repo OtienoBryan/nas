@@ -21,11 +21,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   useInactivity({
     timeout: 20 * 60 * 1000, // 20 minutes
     onInactive: () => {
-      console.log('Screensaver activated - user inactive')
       setScreensaverActive(true)
     },
     onActive: () => {
-      console.log('Screensaver deactivated - user active')
       setScreensaverActive(false)
     }
   })
@@ -54,7 +52,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <Settings className="h-4 w-4" />
               </button>
               <button
-                onClick={logout}
+                onClick={() => logout()}
                 className="text-gray-400 hover:text-gray-500"
               >
                 <LogOut className="h-4 w-4" />

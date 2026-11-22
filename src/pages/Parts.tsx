@@ -121,7 +121,6 @@ const PartModal: React.FC<PartModalProps> = ({
       const result = await cloudinaryService.uploadImage(file, { folder: 'part-images' })
       setFormData(prev => ({ ...prev, image_url: result.secure_url }))
     } catch (error) {
-      console.error('Part image upload failed:', error)
       alert(`Failed to upload image: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setUploadingImage(false)
@@ -137,8 +136,7 @@ const PartModal: React.FC<PartModalProps> = ({
       setLoadingCategories(true)
       const data = await adminApiService.getCategories()
       setCategories(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Error fetching categories:', error)
+    } catch {
       setCategories([])
     } finally {
       setLoadingCategories(false)
@@ -152,7 +150,6 @@ const PartModal: React.FC<PartModalProps> = ({
       await onSave(formData)
       onClose()
     } catch (error) {
-      console.error('Error saving part:', error)
       alert(`Failed to save part: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSaving(false)
@@ -410,8 +407,7 @@ const Parts: React.FC = () => {
     try {
       const data = await adminApiService.getCategories()
       setCategories(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Error fetching categories:', error)
+    } catch {
       setCategories([])
     }
   }
@@ -421,8 +417,7 @@ const Parts: React.FC = () => {
       setLoading(true)
       const data = await adminApiService.getParts()
       setParts(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Error fetching parts:', error)
+    } catch {
       setParts([])
     } finally {
       setLoading(false)
@@ -454,7 +449,6 @@ const Parts: React.FC = () => {
       await adminApiService.updatePart(id, { status })
       setParts(prev => prev.map(p => p.id === id ? { ...p, status } : p))
     } catch (error) {
-      console.error('Error updating status:', error)
       alert(`Failed to update status: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setUpdatingStatusId(null)
@@ -468,7 +462,6 @@ const Parts: React.FC = () => {
       await adminApiService.deletePart(id)
       await fetchParts()
     } catch (error) {
-      console.error('Error deleting part:', error)
       alert(`Failed to delete part: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setDeletingPart(null)

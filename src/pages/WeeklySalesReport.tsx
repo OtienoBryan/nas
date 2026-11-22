@@ -61,8 +61,7 @@ const WeeklySalesReport: React.FC = () => {
       setLoading(true)
       const data = await adminApiService.getWeeklySalesReport(startDate, endDate, selectedStationId || undefined)
       setReport(data)
-    } catch (error) {
-      console.error('❌ [WeeklySalesReport] Error fetching report:', error)
+    } catch {
       setReport(null)
     } finally {
       setLoading(false)
@@ -73,8 +72,7 @@ const WeeklySalesReport: React.FC = () => {
     try {
       const data = await adminApiService.getStations()
       setStations(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [WeeklySalesReport] Error fetching stations:', error)
+    } catch {
       setStations([])
     }
   }

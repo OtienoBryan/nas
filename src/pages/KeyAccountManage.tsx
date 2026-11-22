@@ -92,7 +92,6 @@ const KeyAccountManage: React.FC = () => {
         navigate('/key-accounts')
       }
     } catch (error) {
-      console.error('Error fetching key account:', error)
       alert('Failed to load key account details')
       navigate('/key-accounts')
     } finally {
@@ -108,7 +107,6 @@ const KeyAccountManage: React.FC = () => {
       await fetchKeyAccount()
       setIsEditing(false)
     } catch (error) {
-      console.error('Error updating key account:', error)
       alert('Failed to update key account')
     } finally {
       setSaving(false)
@@ -142,7 +140,6 @@ const KeyAccountManage: React.FC = () => {
       await adminApiService.updateKeyAccount(keyAccount.id, { is_active: newStatus })
       await fetchKeyAccount()
     } catch (error) {
-      console.error('Error toggling status:', error)
       alert(`Failed to ${action} key account`)
     }
   }
@@ -153,8 +150,7 @@ const KeyAccountManage: React.FC = () => {
       setLoadingVehicles(true)
       const data = await adminApiService.getVehiclesByKeyAccount(Number(id))
       setVehicles(data)
-    } catch (error) {
-      console.error('Error fetching vehicles:', error)
+    } catch {
       setVehicles([])
     } finally {
       setLoadingVehicles(false)
@@ -251,7 +247,6 @@ const KeyAccountManage: React.FC = () => {
         driver_contact: ''
       })
     } catch (error) {
-      console.error('Error saving vehicle:', error)
       alert(`Failed to save vehicle: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSavingVehicle(false)
@@ -267,7 +262,6 @@ const KeyAccountManage: React.FC = () => {
       await adminApiService.deleteVehicle(vehicleId)
       await fetchVehicles()
     } catch (error) {
-      console.error('Error deleting vehicle:', error)
       alert('Failed to delete vehicle')
     } finally {
       setDeletingVehicle(null)

@@ -52,7 +52,6 @@ const StationModal: React.FC<StationModalProps> = ({ isOpen, onClose, station, o
       await onSave(formData)
       onClose()
     } catch (error) {
-      console.error('Error saving station:', error)
       alert(`Failed to save station: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSaving(false)
@@ -174,13 +173,10 @@ const Stations: React.FC = () => {
 
   const fetchStations = async () => {
     try {
-      console.log('🚉 [Stations] Fetching stations...')
       setLoading(true)
       const data = await adminApiService.getStations()
-      console.log('✅ [Stations] Stations fetched:', data)
       setStations(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [Stations] Error fetching stations:', error)
+    } catch {
       setStations([])
     } finally {
       setLoading(false)
@@ -189,12 +185,9 @@ const Stations: React.FC = () => {
 
   const fetchRegions = async () => {
     try {
-      console.log('🚉 [Stations] Fetching regions...')
       const data = await adminApiService.getRegions()
-      console.log('✅ [Stations] Regions fetched:', data)
       setRegions(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [Stations] Error fetching regions:', error)
+    } catch {
       setRegions([])
     }
   }
@@ -218,7 +211,6 @@ const Stations: React.FC = () => {
       }
       await fetchStations()
     } catch (error) {
-      console.error('Error saving station:', error)
       throw error
     }
   }
@@ -233,7 +225,6 @@ const Stations: React.FC = () => {
       await adminApiService.deleteStation(id)
       await fetchStations()
     } catch (error) {
-      console.error('Error deleting station:', error)
       alert(`Failed to delete station: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setDeletingStation(null)

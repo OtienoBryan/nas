@@ -51,8 +51,11 @@ function writeLoginAttempts(attempts: Record<string, AttemptState>) {
   } catch { /* storage unavailable: lockout just won't persist across reloads */ }
 }
 
-// Staff are logged out automatically after this long with no mouse/keyboard/touch activity
-const INACTIVITY_LIMIT_MS = 20 * 60_000
+// Staff are logged out automatically after this long with no mouse/keyboard/touch activity.
+// Layout.tsx already shows a privacy screensaver after 20 minutes of inactivity (click to dismiss,
+// no re-auth) — this is the harder cutoff behind it, so a device left idle actually ends the session
+// instead of just hiding the screen indefinitely.
+const INACTIVITY_LIMIT_MS = 40 * 60_000
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)

@@ -54,8 +54,8 @@ const PartDetails: React.FC = () => {
       setInventory(partInv)
       setStores(Array.isArray(st) ? st : [])
       setLedger(Array.isArray(ledgerData) ? ledgerData : [])
-    } catch (err) {
-      console.error('PartDetails load error:', err)
+    } catch {
+      // ignore
     } finally { setLoading(false) }
   }
 

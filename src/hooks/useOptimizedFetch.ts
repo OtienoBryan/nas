@@ -180,8 +180,8 @@ export function useOptimizedChatMessages(
           setMessages(prev => [...prev, ...newMessages]);
         }
       }
-    } catch (err) {
-      console.error('Error fetching new messages:', err);
+    } catch {
+      // ignore: next poll retries
     }
   }, [roomId, lastMessageId]);
 

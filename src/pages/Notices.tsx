@@ -39,14 +39,10 @@ const Notices: React.FC = () => {
   })
 
   useEffect(() => {
-    console.log('🌍 [Notices] useEffect triggered, user:', user ? 'authenticated' : 'not authenticated')
     if (user) {
-      console.log('🌍 [Notices] User is authenticated, loading data...')
       loadNotices()
       loadStats()
       loadCountries()
-    } else {
-      console.log('🌍 [Notices] User not authenticated, skipping data load')
     }
   }, [user])
 
@@ -61,8 +57,7 @@ const Notices: React.FC = () => {
         0
       )
       setNotices(noticesData)
-    } catch (err) {
-      console.error('Error loading notices:', err)
+    } catch {
       setError('Failed to load notices')
     } finally {
       setLoading(false)
@@ -73,21 +68,16 @@ const Notices: React.FC = () => {
     try {
       const statsData = await adminApiService.getNoticeStats()
       setStats(statsData)
-    } catch (err) {
-      console.error('Error loading stats:', err)
+    } catch {
+      // ignore
     }
   }
 
   const loadCountries = async () => {
     try {
-      console.log('🌍 [Notices] Loading countries...')
       const countriesData = await adminApiService.getCountries()
-      console.log('🌍 [Notices] Countries loaded:', countriesData)
-      console.log('🌍 [Notices] Countries count:', countriesData.length)
       setCountries(countriesData)
-      console.log('🌍 [Notices] Countries state updated')
-    } catch (err) {
-      console.error('❌ [Notices] Error loading countries:', err)
+    } catch {
       setError('Failed to load countries')
     }
   }
@@ -100,8 +90,7 @@ const Notices: React.FC = () => {
       setFormData({ title: '', content: '', countryId: 1, status: 1 })
       await loadNotices()
       await loadStats()
-    } catch (err) {
-      console.error('Error creating notice:', err)
+    } catch {
       setError('Failed to create notice')
     } finally {
       setLoading(false)
@@ -119,8 +108,7 @@ const Notices: React.FC = () => {
       setFormData({ title: '', content: '', countryId: 1, status: 1 })
       await loadNotices()
       await loadStats()
-    } catch (err) {
-      console.error('Error updating notice:', err)
+    } catch {
       setError('Failed to update notice')
     } finally {
       setLoading(false)
@@ -137,8 +125,7 @@ const Notices: React.FC = () => {
       setSelectedNotice(null)
       await loadNotices()
       await loadStats()
-    } catch (err) {
-      console.error('Error deleting notice:', err)
+    } catch {
       setError('Failed to delete notice')
     } finally {
       setLoading(false)
@@ -151,8 +138,7 @@ const Notices: React.FC = () => {
       await adminApiService.toggleNoticeStatus(notice.id)
       await loadNotices()
       await loadStats()
-    } catch (err) {
-      console.error('Error toggling notice status:', err)
+    } catch {
       setError('Failed to toggle notice status')
     } finally {
       setLoading(false)

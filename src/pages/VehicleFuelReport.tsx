@@ -62,8 +62,7 @@ const VehicleFuelReport: React.FC = () => {
       setLoading(true)
       const data = await adminApiService.getVehicleFuelReport(startDate, endDate, selectedStationId || undefined)
       setReport(data)
-    } catch (error) {
-      console.error('❌ [VehicleFuelReport] Error fetching report:', error)
+    } catch {
       setReport(null)
     } finally {
       setLoading(false)
@@ -74,8 +73,7 @@ const VehicleFuelReport: React.FC = () => {
     try {
       const data = await adminApiService.getStations()
       setStations(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [VehicleFuelReport] Error fetching stations:', error)
+    } catch {
       setStations([])
     }
   }

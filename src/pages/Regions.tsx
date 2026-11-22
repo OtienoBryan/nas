@@ -51,7 +51,6 @@ const RegionModal: React.FC<RegionModalProps> = ({ isOpen, onClose, region, onSa
       await onSave(formData)
       onClose()
     } catch (error) {
-      console.error('Error saving region:', error)
       alert(`Failed to save region: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSaving(false)
@@ -173,13 +172,10 @@ const Regions: React.FC = () => {
 
   const fetchRegions = async () => {
     try {
-      console.log('🌍 [Regions] Fetching regions...')
       setLoading(true)
       const data = await adminApiService.getRegions()
-      console.log('✅ [Regions] Regions fetched:', data)
       setRegions(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [Regions] Error fetching regions:', error)
+    } catch {
       setRegions([])
     } finally {
       setLoading(false)
@@ -188,12 +184,9 @@ const Regions: React.FC = () => {
 
   const fetchCountries = async () => {
     try {
-      console.log('🌍 [Regions] Fetching countries...')
       const data = await adminApiService.getCountries()
-      console.log('✅ [Regions] Countries fetched:', data)
       setCountries(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [Regions] Error fetching countries:', error)
+    } catch {
       setCountries([])
     }
   }
@@ -217,7 +210,6 @@ const Regions: React.FC = () => {
       }
       await fetchRegions()
     } catch (error) {
-      console.error('Error saving region:', error)
       throw error
     }
   }
@@ -232,7 +224,6 @@ const Regions: React.FC = () => {
       await adminApiService.deleteRegion(id)
       await fetchRegions()
     } catch (error) {
-      console.error('Error deleting region:', error)
       alert(`Failed to delete region: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setDeletingRegion(null)

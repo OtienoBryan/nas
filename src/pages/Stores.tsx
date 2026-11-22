@@ -70,8 +70,7 @@ const StoreModal: React.FC<StoreModalProps> = ({
       setLoadingCountries(true)
       const data = await adminApiService.getCountries()
       setCountries(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Error fetching countries:', error)
+    } catch {
       setCountries([])
     } finally {
       setLoadingCountries(false)
@@ -272,8 +271,8 @@ const Stores: React.FC = () => {
     try {
       const data = await adminApiService.getCountries()
       setCountries(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Error fetching countries:', error)
+    } catch {
+      // ignore
     }
   }
 
@@ -284,13 +283,10 @@ const Stores: React.FC = () => {
 
   const fetchStores = async () => {
     try {
-      console.log('🏪 [Stores] Fetching stores from database...')
       setLoading(true)
       const data = await adminApiService.getStores()
-      console.log('✅ [Stores] Stores fetched from database:', data)
       setStores(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [Stores] Error fetching stores:', error)
+    } catch {
       setStores([])
     } finally {
       setLoading(false)
@@ -310,19 +306,16 @@ const Stores: React.FC = () => {
   const handleSave = async (storeData: Partial<Store>) => {
     try {
       if (editingStore) {
-        console.log('Updating store in database:', editingStore.id, storeData)
         // Don't allow updating store_code
         const { store_code, ...updateData } = storeData
         await adminApiService.updateStore(editingStore.id, updateData)
       } else {
-        console.log('Creating store in database:', storeData)
         // Don't send store_code - it will be auto-generated
         const { store_code, ...createData } = storeData
         await adminApiService.createStore(createData as Omit<Store, 'id' | 'created_at' | 'store_code'>)
       }
       await fetchStores()
     } catch (error) {
-      console.error('Error saving store:', error)
       throw error
     }
   }
@@ -334,11 +327,9 @@ const Stores: React.FC = () => {
 
     try {
       setDeletingStore(id)
-      console.log('Deleting store from database:', id)
       await adminApiService.deleteStore(id)
       await fetchStores()
     } catch (error) {
-      console.error('Error deleting store:', error)
       alert(`Failed to delete store: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setDeletingStore(null)

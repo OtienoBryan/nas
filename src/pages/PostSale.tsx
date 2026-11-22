@@ -69,8 +69,8 @@ const PostSale: React.FC = () => {
       setStations(Array.isArray(stationsData) ? stationsData : [])
       setKeyAccounts(Array.isArray(keyAccountsData) ? keyAccountsData : [])
       setStaff(Array.isArray(staffData) ? staffData : [])
-    } catch (error) {
-      console.error('Error fetching data:', error)
+    } catch {
+      // ignore
     } finally {
       setLoading(false)
     }
@@ -92,8 +92,7 @@ const PostSale: React.FC = () => {
         setCurrentFuelPrice(null)
         setFormData(prev => ({ ...prev, price: '' }))
       }
-    } catch (error) {
-      console.error('Error fetching fuel price:', error)
+    } catch {
       setCurrentFuelPrice(null)
       setFormData(prev => ({ ...prev, price: '' }))
     }
@@ -103,8 +102,7 @@ const PostSale: React.FC = () => {
     try {
       const vehiclesData = await adminApiService.getVehiclesByKeyAccount(keyAccountId)
       setVehicles(Array.isArray(vehiclesData) ? vehiclesData : [])
-    } catch (error) {
-      console.error('Error fetching vehicles:', error)
+    } catch {
       setVehicles([])
     }
   }
@@ -190,33 +188,14 @@ const PostSale: React.FC = () => {
           notes: formData.notes || undefined,
           createdBy: formData.createdBy ? Number(formData.createdBy) : undefined
         })
-        console.log('✅ [PostSale] Sale record created successfully')
-      } catch (error) {
-        console.error('❌ [PostSale] Error creating sale record:', error)
+      } catch {
         // Don't fail the whole operation if sale record creation fails
       }
 
       // If key account sale, also create key account ledger entry
-      console.log('💰 [PostSale] Checking if should create key account ledger:', {
-        clientType: formData.clientType,
-        isKeyAccount: formData.clientType === 'key_account',
-        keyAccountId: formData.keyAccountId,
-        hasKeyAccountId: !!formData.keyAccountId,
-        hasFuelPrice: !!currentFuelPrice,
-        currentFuelPrice: currentFuelPrice
-      })
-      
       if (formData.clientType === 'key_account' && formData.keyAccountId && currentFuelPrice) {
         try {
-          console.log('💰 [PostSale] Creating key account ledger entry...', {
-            keyAccountId: formData.keyAccountId,
-            vehicleId: formData.vehicleId,
-            stationId: formData.stationId,
-            quantity: formData.quantity,
-            unitPrice: currentFuelPrice.price,
-            totalAmount: formData.price
-          })
-          const ledgerResult = await adminApiService.createKeyAccountLedger({
+          await adminApiService.createKeyAccountLedger({
             keyAccountId: Number(formData.keyAccountId),
             vehicleId: formData.vehicleId ? Number(formData.vehicleId) : undefined,
             stationId: Number(formData.stationId),
@@ -230,11 +209,8 @@ const PostSale: React.FC = () => {
             notes: formData.notes || null,
             createdBy: formData.createdBy ? Number(formData.createdBy) : undefined
           })
-          console.log('✅ [PostSale] Key account ledger entry created:', ledgerResult)
         } catch (error) {
-          console.error('❌ [PostSale] Error creating key account ledger entry:', error)
           const errorMessage = (error as any)?.message || 'Unknown error'
-          console.error('❌ [PostSale] Error details:', errorMessage)
           // Show error to user but don't fail the whole operation
           alert(`Warning: Sale posted but key account ledger entry failed: ${errorMessage}`)
         }
@@ -256,7 +232,6 @@ const PostSale: React.FC = () => {
       setCurrentFuelPrice(null)
       setVehicles([])
     } catch (error) {
-      console.error('Error posting sale:', error)
       alert(`Failed to post sale: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSaving(false)

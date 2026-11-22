@@ -46,7 +46,6 @@ const CloudinaryUpload: React.FC<CloudinaryUploadProps> = ({
       setPreview(result.secure_url)
       onUpload(result)
     } catch (error) {
-      console.error('Upload failed:', error)
       const errorMessage = error instanceof Error && error.message.includes('not configured')
         ? 'Cloudinary is not configured. Please set up your environment variables.'
         : 'Failed to upload image. Please try again.'

@@ -81,8 +81,7 @@ const StaffPage: React.FC = () => {
       try {
         const departmentsData = await adminApiService.getDepartments()
         setDepartments(departmentsData)
-      } catch (deptError) {
-        console.warn('Could not load departments, using fallback:', deptError)
+      } catch {
         // Fallback: extract departments from staff data
         const fallbackDepartments = Array.from(new Set(staffData.map(member => member.department).filter(Boolean)))
           .map((deptName, index) => ({
@@ -93,8 +92,8 @@ const StaffPage: React.FC = () => {
           }))
         setDepartments(fallbackDepartments as Department[])
       }
-    } catch (error) {
-      console.error('Error loading staff data:', error)
+    } catch {
+      // ignore
     } finally {
       setLoading(false)
     }
@@ -185,13 +184,11 @@ const StaffPage: React.FC = () => {
       
       // Handle image upload if a new image was selected
       if (imageFile) {
-        console.log('📷 Uploading image to Cloudinary...')
         const uploadResult = await adminApiService.uploadStaffImage(imageFile)
         updatedForm.photo_url = uploadResult.url
         updatedForm.avatar_url = uploadResult.url
-        console.log('📷 Image uploaded successfully:', uploadResult.url)
       }
-      
+
       await adminApiService.updateStaff(editingStaff.id, updatedForm)
       await loadData()
       setShowEditModal(false)
@@ -199,8 +196,7 @@ const StaffPage: React.FC = () => {
       setEditForm({})
       setImagePreview(null)
       setImageFile(null)
-    } catch (error) {
-      console.error('Error updating staff member:', error)
+    } catch {
       alert('Failed to update staff member. Please try again.')
     } finally {
       setUploadingImage(false)
@@ -294,10 +290,8 @@ const StaffPage: React.FC = () => {
       
       // Handle image upload if a new image was selected
       if (addImageFile) {
-        console.log('📷 Uploading image to Cloudinary...')
         const uploadResult = await adminApiService.uploadStaffImage(addImageFile)
         photoUrl = uploadResult.url
-        console.log('📷 Image uploaded successfully:', uploadResult.url)
       }
       
       // Use placeholder if no photo provided (since photo_url is required in DB)
@@ -343,8 +337,7 @@ const StaffPage: React.FC = () => {
       })
       setAddImagePreview(null)
       setAddImageFile(null)
-    } catch (error) {
-      console.error('Error adding staff member:', error)
+    } catch {
       alert('Failed to add staff member. Please try again.')
     } finally {
       setAddingStaff(false)
@@ -373,8 +366,8 @@ const StaffPage: React.FC = () => {
       try {
         await adminApiService.deleteStaff(id)
         await loadData()
-      } catch (error) {
-        console.error('Error deleting staff member:', error)
+      } catch {
+        // ignore
       }
     }
   }

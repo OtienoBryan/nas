@@ -79,8 +79,7 @@ const KeyAccountModal: React.FC<KeyAccountModalProps> = ({
       // Filter only active regions
       const activeRegions = data.filter(region => region.status === 1)
       setRegions(activeRegions)
-    } catch (error) {
-      console.error('Error fetching regions:', error)
+    } catch {
       setRegions([])
     } finally {
       setLoadingRegions(false)
@@ -94,7 +93,6 @@ const KeyAccountModal: React.FC<KeyAccountModalProps> = ({
       await onSave(formData)
       onClose()
     } catch (error) {
-      console.error('Error saving key account:', error)
       alert(`Failed to save key account: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSaving(false)
@@ -318,13 +316,10 @@ const KeyAccounts: React.FC = () => {
 
   const fetchKeyAccounts = async () => {
     try {
-      console.log('🏢 [KeyAccounts] Fetching key accounts...')
       setLoading(true)
       const data = await adminApiService.getKeyAccounts()
-      console.log('✅ [KeyAccounts] Key accounts fetched:', data)
       setKeyAccounts(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [KeyAccounts] Error fetching key accounts:', error)
+    } catch {
       setKeyAccounts([])
     } finally {
       setLoading(false)
@@ -363,7 +358,6 @@ const KeyAccounts: React.FC = () => {
       }
       await fetchKeyAccounts()
     } catch (error) {
-      console.error('Error saving key account:', error)
       throw error
     }
   }
@@ -378,7 +372,6 @@ const KeyAccounts: React.FC = () => {
       await adminApiService.deleteKeyAccount(id)
       await fetchKeyAccounts()
     } catch (error) {
-      console.error('Error deleting key account:', error)
       alert(`Failed to delete key account: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setDeletingKeyAccount(null)
@@ -400,7 +393,6 @@ const KeyAccounts: React.FC = () => {
       })
       await fetchKeyAccounts()
     } catch (error) {
-      console.error('Error toggling key account status:', error)
       alert(`Failed to ${action} key account: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setTogglingKeyAccount(null)

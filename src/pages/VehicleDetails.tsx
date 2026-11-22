@@ -149,8 +149,8 @@ const VehicleDetails: React.FC = () => {
         setLoading(true)
         const data = await adminApiService.getConversionVehicle(Number(vehicleId))
         setVehicle(data)
-      } catch (err) {
-        console.error('Error fetching vehicle:', err)
+      } catch {
+        // ignore
       } finally {
         setLoading(false)
       }

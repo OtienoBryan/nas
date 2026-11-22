@@ -173,9 +173,8 @@ const SalesReport: React.FC = () => {
       setSales(result.data)
       setTotal(result.total)
       setSummary(result.summary)
-    } catch (error) {
+    } catch {
       if (requestId !== latestRequest.current) return
-      console.error('❌ [SalesReport] Error fetching sales:', error)
       setSales([])
       setTotal(0)
       setSummary({ totalSales: 0, totalQuantity: 0, totalRevenue: 0, uniqueVehicles: 0 })
@@ -201,8 +200,8 @@ const SalesReport: React.FC = () => {
       try {
         const vehicles = await adminApiService.getVehiclesByKeyAccount(keyAccountId)
         allVehicles.push(...vehicles)
-      } catch (error) {
-        console.error(`❌ [SalesReport] Error fetching vehicles for key account ${keyAccountId}:`, error)
+      } catch {
+        // ignore
       }
     }
     setVehicles(allVehicles)
@@ -212,8 +211,7 @@ const SalesReport: React.FC = () => {
     try {
       const data = await adminApiService.getStations()
       setStations(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [SalesReport] Error fetching stations:', error)
+    } catch {
       setStations([])
     }
   }
@@ -222,8 +220,7 @@ const SalesReport: React.FC = () => {
     try {
       const data = await adminApiService.getKeyAccounts()
       setKeyAccounts(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [SalesReport] Error fetching key accounts:', error)
+    } catch {
       setKeyAccounts([])
     }
   }
@@ -232,8 +229,7 @@ const SalesReport: React.FC = () => {
     try {
       const data = await adminApiService.getConversionClients()
       setConversionClients(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [SalesReport] Error fetching conversion clients:', error)
+    } catch {
       setConversionClients([])
     }
   }
@@ -242,8 +238,7 @@ const SalesReport: React.FC = () => {
     try {
       const data = await adminApiService.getVehiclesByKeyAccount(keyAccountId)
       setVehicles(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [SalesReport] Error fetching vehicles:', error)
+    } catch {
       setVehicles([])
     }
   }
@@ -252,8 +247,7 @@ const SalesReport: React.FC = () => {
     try {
       const data = await adminApiService.getStaff()
       setStaff(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [SalesReport] Error fetching staff:', error)
+    } catch {
       setStaff([])
     }
   }
