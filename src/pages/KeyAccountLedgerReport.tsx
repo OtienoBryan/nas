@@ -50,15 +50,12 @@ const KeyAccountLedgerReport: React.FC = () => {
 
   const fetchLedger = async () => {
     try {
-      console.log('💰 [KeyAccountLedgerReport] Fetching key account ledger...')
       setLoading(true)
       const data = selectedKeyAccountId
         ? await adminApiService.getKeyAccountLedgerByKeyAccount(selectedKeyAccountId)
         : await adminApiService.getKeyAccountLedger()
-      console.log('✅ [KeyAccountLedgerReport] Ledger fetched:', data)
       setLedger(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [KeyAccountLedgerReport] Error fetching ledger:', error)
+    } catch {
       setLedger([])
     } finally {
       setLoading(false)
@@ -69,8 +66,7 @@ const KeyAccountLedgerReport: React.FC = () => {
     try {
       const data = await adminApiService.getKeyAccounts()
       setKeyAccounts(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [KeyAccountLedgerReport] Error fetching key accounts:', error)
+    } catch {
       setKeyAccounts([])
     }
   }
@@ -79,8 +75,7 @@ const KeyAccountLedgerReport: React.FC = () => {
     try {
       const data = await adminApiService.getStations()
       setStations(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [KeyAccountLedgerReport] Error fetching stations:', error)
+    } catch {
       setStations([])
     }
   }
@@ -89,8 +84,7 @@ const KeyAccountLedgerReport: React.FC = () => {
     try {
       const data = await adminApiService.getVehiclesByKeyAccount(keyAccountId)
       setVehicles(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [KeyAccountLedgerReport] Error fetching vehicles:', error)
+    } catch {
       setVehicles([])
     }
   }
@@ -99,8 +93,7 @@ const KeyAccountLedgerReport: React.FC = () => {
     try {
       const data = await adminApiService.getStaff()
       setStaff(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [KeyAccountLedgerReport] Error fetching staff:', error)
+    } catch {
       setStaff([])
     }
   }

@@ -35,24 +35,12 @@ const InventoryReport: React.FC = () => {
 
   const fetchLedger = async () => {
     try {
-      console.log('📦 [InventoryReport] Fetching inventory ledger...')
       setLoading(true)
       const data = selectedStationId
         ? await adminApiService.getInventoryLedger(selectedStationId)
         : await adminApiService.getInventoryReport()
-      console.log('✅ [InventoryReport] Ledger fetched:', data)
-      console.log('✅ [InventoryReport] First entry sample:', data && data.length > 0 ? {
-        id: data[0].id,
-        quantityIn: data[0].quantityIn,
-        quantityOut: data[0].quantityOut,
-        balance: data[0].balance,
-        transactionType: data[0].transactionType,
-        quantity: data[0].quantity,
-        newQuantity: data[0].newQuantity
-      } : 'No data')
       setLedger(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [InventoryReport] Error fetching ledger:', error)
+    } catch {
       setLedger([])
     } finally {
       setLoading(false)
@@ -63,8 +51,7 @@ const InventoryReport: React.FC = () => {
     try {
       const data = await adminApiService.getStations()
       setStations(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [InventoryReport] Error fetching stations:', error)
+    } catch {
       setStations([])
     }
   }
@@ -73,8 +60,7 @@ const InventoryReport: React.FC = () => {
     try {
       const data = await adminApiService.getRegions()
       setRegions(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [InventoryReport] Error fetching regions:', error)
+    } catch {
       setRegions([])
     }
   }
@@ -83,8 +69,7 @@ const InventoryReport: React.FC = () => {
     try {
       const data = await adminApiService.getStaff()
       setStaff(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [InventoryReport] Error fetching staff:', error)
+    } catch {
       setStaff([])
     }
   }
