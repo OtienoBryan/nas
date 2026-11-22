@@ -80,8 +80,7 @@ const Calendar: React.FC = () => {
       setConversionsLoading(true)
       const data = await adminApiService.getConversions()
       setConversions(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Failed to fetch conversions:', error)
+    } catch {
       setConversions([])
     } finally {
       setConversionsLoading(false)
@@ -92,8 +91,7 @@ const Calendar: React.FC = () => {
     try {
       const data = await adminApiService.getAppointments()
       setAppointments(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Failed to fetch appointments:', error)
+    } catch {
       setAppointments([])
     }
   }
@@ -122,8 +120,8 @@ const Calendar: React.FC = () => {
             conversionsByDate[dateKey] = []
           }
           conversionsByDate[dateKey].push(conversion)
-        } catch (error) {
-          console.error('Error parsing scheduled date:', conversion.scheduledDate, error)
+        } catch {
+          // ignore unparsable scheduled date
         }
       }
     })
@@ -139,8 +137,8 @@ const Calendar: React.FC = () => {
         const dateKey = dateKeyOf(new Date(appt.appointment_date))
         if (!byDate[dateKey]) byDate[dateKey] = []
         byDate[dateKey].push(appt)
-      } catch (error) {
-        console.error('Error parsing appointment date:', appt.appointment_date, error)
+      } catch {
+        // ignore unparsable appointment date
       }
     })
 

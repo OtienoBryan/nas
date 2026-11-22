@@ -1,5 +1,5 @@
 // Modules and endpoints of the Restaurant Connect API (mirrors the Bruno collection)
-export type HttpMethod = 'GET' | 'POST' | 'PUT'
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
 export interface ModuleEndpoint {
   method: HttpMethod
@@ -120,11 +120,14 @@ export const RESTAURANT_MODULES: RestaurantModule[] = [
     ],
   },
   {
-    slug: 'trips', name: 'Trips', icon: 'MapPin', color: 'lime',
+    slug: 'trips', name: 'Shift schedules', icon: 'MapPin', color: 'lime',
     endpoints: [
-      { method: 'GET', path: `${R}/trips`, description: 'List trips', page: '/restaurant/trips' },
-      { method: 'POST', path: `${R}/trips`, description: 'Create a trip', page: '/restaurant/trips' },
-      { method: 'PUT', path: `${R}/trips/:tripId`, description: 'Update a trip', page: '/restaurant/trips' },
+      { method: 'GET', path: `${R}/shift-schedules`, description: 'List shifts (?activeOnly=false includes deactivated)', page: '/restaurant/trips' },
+      { method: 'GET', path: `${R}/shift-schedules/available`, description: 'Shifts a waiter can start now (POS picker)', page: '/restaurant/trips' },
+      { method: 'GET', path: `${R}/shift-schedules/:id`, description: 'Get a shift' },
+      { method: 'POST', path: `${R}/shift-schedules`, description: 'Create a shift', page: '/restaurant/trips' },
+      { method: 'PUT', path: `${R}/shift-schedules/:id`, description: 'Update a shift', page: '/restaurant/trips' },
+      { method: 'DELETE', path: `${R}/shift-schedules/:id`, description: 'Deactivate a shift (history kept)', page: '/restaurant/trips' },
     ],
   },
   {

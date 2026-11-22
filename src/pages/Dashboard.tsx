@@ -6,6 +6,7 @@ import { prefetchQuery } from '../services/queryCache'
 import { MENU_CATEGORIES_KEY } from '../services/queryKeys'
 import DailySalesSection from '../components/DailySalesSection'
 import ProductPerformanceSection from '../components/ProductPerformanceSection'
+import TodaySalesSection from '../components/TodaySalesSection'
 import { RESTAURANT_MODULES } from '../services/restaurantModules'
 import {
   UtensilsCrossed,
@@ -65,10 +66,13 @@ const PAGE_TILES: Tile[] = [
 // Modules with no card on the dashboard (their pages still work by URL)
 const HIDDEN_MODULES = ['menu', 'shifts', 'payments', 'payment-methods', 'dpo', 'audit', 'health', 'devices', 'sync', 'sales']
 
+// Dashboard-only display name overrides (the module registry's own name stays as-is elsewhere)
+const TILE_NAME_OVERRIDES: Record<string, string> = { trips: 'Trips' }
+
 const TILES: Tile[] = [
   ...PAGE_TILES,
   ...RESTAURANT_MODULES.filter(m => !HIDDEN_MODULES.includes(m.slug)).map(m => ({
-    key: m.slug, name: m.name, icon: m.icon, color: m.color,
+    key: m.slug, name: TILE_NAME_OVERRIDES[m.slug] ?? m.name, icon: m.icon, color: m.color,
     route: `/restaurant/${m.slug}`, sub: `${m.endpoints.length} endpoints`,
   })),
 ]
@@ -94,6 +98,7 @@ const Dashboard: React.FC = () => {
       <div className="space-y-6 w-full">
         {/* One button per folder in the Restaurant Connect API collection */}
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
+          <TodaySalesSection />
           {TILES.map(module => {
             const Icon = ICONS[module.icon] ?? Activity
             const colors = TILE_COLORS[module.color] ?? TILE_COLORS.blue

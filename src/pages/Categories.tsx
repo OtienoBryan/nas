@@ -47,7 +47,6 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, category
       await onSave(formData)
       onClose()
     } catch (error) {
-      console.error('Error saving category:', error)
       alert(`Failed to save category: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSaving(false)
@@ -147,13 +146,10 @@ const Categories: React.FC = () => {
 
   const fetchCategories = async () => {
     try {
-      console.log('📁 [Categories] Fetching categories...')
       setLoading(true)
       const data = await adminApiService.getCategories()
-      console.log('✅ [Categories] Categories fetched:', data)
       setCategories(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [Categories] Error fetching categories:', error)
+    } catch {
       setCategories([])
     } finally {
       setLoading(false)
@@ -179,7 +175,6 @@ const Categories: React.FC = () => {
       }
       await fetchCategories()
     } catch (error) {
-      console.error('Error saving category:', error)
       throw error
     }
   }
@@ -194,7 +189,6 @@ const Categories: React.FC = () => {
       await adminApiService.deleteCategory(id)
       await fetchCategories()
     } catch (error) {
-      console.error('Error deleting category:', error)
       alert(`Failed to delete category: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setDeletingCategory(null)

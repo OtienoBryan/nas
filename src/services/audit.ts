@@ -150,6 +150,9 @@ export async function flushAudit(force = false, keepalive = false): Promise<void
       if (res.status === 400) {
         try { message = `Server rejected the events (HTTP 400): ${(await res.json()).message ?? 'validation failed'}` } catch { /* no body */ }
         entries = entries.map(x => (ids.has(x.event.eventId) ? { ...x, status: 'dropped' as const } : x))
+      } else if (res.status === 401 || res.status === 403) {
+        // Token is dead: drop it so we stop retrying with it. A fresh login will resume flushing.
+        localStorage.removeItem('adminToken')
       } else {
         blockedUntil = Date.now() + BACKOFF_MS
       }

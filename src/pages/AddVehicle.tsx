@@ -161,7 +161,6 @@ const AddVehicle: React.FC = () => {
       const results = await cloudinaryService.uploadMultipleImages(imageFiles, { folder: 'vehicle-photos' })
       setFormData(prev => ({ ...prev, photo_urls: [...prev.photo_urls, ...results.map(r => r.secure_url)] }))
     } catch (error) {
-      console.error('Photo upload failed:', error)
       alert('Failed to upload one or more photos. You can still save the vehicle without them.')
     } finally {
       setUploadingPhoto(false)
@@ -199,7 +198,6 @@ const AddVehicle: React.FC = () => {
       const result = await cloudinaryService.uploadDocument(file, { folder: 'vehicle-documents' })
       setFormData(prev => ({ ...prev, documents: prev.documents.map(d => d.id === id ? { ...d, url: result.secure_url } : d) }))
     } catch (error) {
-      console.error('Document upload failed:', error)
       alert(`Failed to upload document: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setUploadingDocs(prev => ({ ...prev, [id]: false }))
@@ -215,10 +213,7 @@ const AddVehicle: React.FC = () => {
 
     setAnalyzingImage(true)
     try {
-      console.log('🚗 [AddVehicle] Starting image analysis for:', coverPhoto)
       const analysis = await adminApiService.analyzeVehicleImage(coverPhoto)
-
-      console.log('🚗 [AddVehicle] Analysis result:', analysis)
 
       if (analysis && analysis.confidence !== 'low') {
         setFormData(prev => ({
@@ -235,14 +230,11 @@ const AddVehicle: React.FC = () => {
           engine: analysis.engine || prev.engine,
           color: analysis.color || prev.color
         }))
-        console.log('🚗 [AddVehicle] Vehicle details auto-filled from image analysis:', analysis)
         alert(`Vehicle details identified! Confidence: ${analysis.confidence}\n\nFound: ${analysis.extractedDetails.join(', ')}`)
       } else {
-        console.warn('🚗 [AddVehicle] Low confidence or no data:', analysis)
         alert('Could not identify vehicle details from image (low confidence). Please enter details manually.')
       }
     } catch (error) {
-      console.error('❌ [AddVehicle] Vehicle image analysis failed:', error)
       alert(`Failed to analyze image: ${(error as any).message || 'Unknown error'}\n\nPlease enter details manually.`)
     } finally {
       setAnalyzingImage(false)
@@ -292,7 +284,6 @@ const AddVehicle: React.FC = () => {
       setFormData(emptyVehicleForm)
       setSuccessMessage('Vehicle added successfully. You can add another one below.')
     } catch (error) {
-      console.error('Error saving vehicle:', error)
       alert(`Failed to save vehicle: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSaving(false)

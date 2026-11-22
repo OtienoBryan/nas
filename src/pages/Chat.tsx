@@ -88,28 +88,21 @@ const Chat: React.FC = () => {
       setLoading(true)
       setError(null)
       const token = localStorage.getItem('adminToken')
-      console.log('🔍 Loading chat rooms...', { token: token ? 'exists' : 'missing' })
-      
+
       const response = await fetch('/api/chat/rooms', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
-      
-      console.log('📡 Chat rooms API response:', { status: response.status, ok: response.ok })
-      
+
       if (response.ok) {
         const rooms = await response.json()
-        console.log('💬 Chat rooms data received:', rooms)
         setChatRooms(rooms)
       } else {
-        const errorText = await response.text()
-        console.error('❌ Chat rooms API error:', errorText)
         setError('Failed to load chat rooms')
       }
-    } catch (error) {
-      console.error('❌ Error loading chat rooms:', error)
+    } catch {
       setError('Failed to load chat rooms')
     } finally {
       setLoading(false)
@@ -119,27 +112,20 @@ const Chat: React.FC = () => {
   const loadStaff = async () => {
     try {
       const token = localStorage.getItem('adminToken')
-      console.log('🔍 Loading staff members...', { token: token ? 'exists' : 'missing' })
-      
+
       const response = await fetch('/api/chat/staff', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
-      
-      console.log('📡 Staff API response:', { status: response.status, ok: response.ok })
-      
+
       if (response.ok) {
         const staffData = await response.json()
-        console.log('👥 Staff data received:', staffData)
         setStaff(staffData)
-      } else {
-        const errorText = await response.text()
-        console.error('❌ Staff API error:', errorText)
       }
-    } catch (error) {
-      console.error('❌ Error loading staff:', error)
+    } catch {
+      // ignore
     }
   }
 
@@ -170,8 +156,8 @@ const Chat: React.FC = () => {
           scrollToBottom()
         }, 100)
       }
-    } catch (error) {
-      console.error('Error loading messages:', error)
+    } catch {
+      // ignore
     } finally {
       setLoadingMessages(false)
     }
@@ -204,8 +190,8 @@ const Chat: React.FC = () => {
           }, 50)
         }
       }
-    } catch (error) {
-      console.error('Error polling for new messages:', error)
+    } catch {
+      // ignore
     }
   }
 
@@ -218,23 +204,17 @@ const Chat: React.FC = () => {
         createdBy: user?.id
       }
       
-      console.log('🔍 [Frontend] Creating chat room with data:', requestData)
-      console.log('🔍 [Frontend] User object:', user)
-      
       if (!user?.id) {
-        console.error('❌ [Frontend] No user ID available')
         alert('Error: User not logged in properly')
         return
       }
-      
+
       if (!newRoomName.trim()) {
-        console.error('❌ [Frontend] Room name is empty')
         alert('Please enter a room name')
         return
       }
-      
+
       if (selectedMembers.length === 0) {
-        console.error('❌ [Frontend] No members selected')
         alert('Please select at least one member')
         return
       }
@@ -248,22 +228,17 @@ const Chat: React.FC = () => {
         body: JSON.stringify(requestData)
       })
       
-      console.log('📡 [Frontend] Create room response status:', response.status)
-      
       if (response.ok) {
         const newRoom = await response.json()
-        console.log('✅ [Frontend] Room created successfully:', newRoom)
         setChatRooms(prev => [newRoom, ...prev])
         setShowCreateRoom(false)
         setNewRoomName('')
         setSelectedMembers([])
       } else {
         const errorText = await response.text()
-        console.error('❌ [Frontend] Create room failed:', response.status, errorText)
         alert(`Failed to create room: ${errorText}`)
       }
-    } catch (error) {
-      console.error('❌ [Frontend] Error creating chat room:', error)
+    } catch {
       alert('Error creating chat room')
     }
   }
@@ -328,8 +303,7 @@ const Chat: React.FC = () => {
           setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id))
           alert('Failed to send message')
         }
-      } catch (error) {
-        console.error('Error sending message:', error)
+      } catch {
         // If sending failed, remove the temporary message
         setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id))
         alert('Error sending message')

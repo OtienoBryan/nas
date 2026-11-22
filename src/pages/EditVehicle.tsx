@@ -174,7 +174,6 @@ const EditVehicle: React.FC = () => {
       const results = await cloudinaryService.uploadMultipleImages(imageFiles, { folder: 'vehicle-photos' })
       setPhotoUrls(prev => [...prev, ...results.map(r => r.secure_url)])
     } catch (error) {
-      console.error('Photo upload failed:', error)
       alert('Failed to upload one or more photos.')
     } finally {
       setUploadingPhoto(false)
@@ -212,7 +211,6 @@ const EditVehicle: React.FC = () => {
       const result = await cloudinaryService.uploadDocument(file, { folder: 'vehicle-documents' })
       setDocuments(prev => prev.map(d => d.id === id ? { ...d, url: result.secure_url } : d))
     } catch (error) {
-      console.error('Document upload failed:', error)
       alert(`Failed to upload document: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setUploadingDocs(prev => ({ ...prev, [id]: false }))
@@ -250,7 +248,6 @@ const EditVehicle: React.FC = () => {
         alert('Could not identify vehicle details from image (low confidence). Please enter details manually.')
       }
     } catch (error) {
-      console.error('❌ [EditVehicle] Vehicle image analysis failed:', error)
       alert(`Failed to analyze image: ${(error as any).message || 'Unknown error'}\n\nPlease enter details manually.`)
     } finally {
       setAnalyzingImage(false)

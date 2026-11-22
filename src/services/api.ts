@@ -374,6 +374,20 @@ export interface TripRecord {
 
 export type TripInput = Omit<TripRecord, 'id'>
 
+// Shift schedules (/shift-schedules). Input fields follow the documented payload; id/isActive are assumed on responses.
+export interface ShiftScheduleRecord {
+  id: string
+  serviceNumber: string
+  tripCode: string
+  origin: string
+  destination: string
+  departureTime: string
+  arrivalTime: string
+  isActive: boolean
+}
+
+export type ShiftScheduleInput = Omit<ShiftScheduleRecord, 'id' | 'isActive'>
+
 export interface TripListQuery {
   from?: string
   to?: string
@@ -1864,7 +1878,6 @@ class AdminApiService {
 
   constructor() {
     this.authToken = localStorage.getItem('adminToken')
-    console.log('🔐 [API] Initialized with token:', this.authToken ? 'Present' : 'Missing')
   }
 
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -1927,10 +1940,11 @@ class AdminApiService {
         let errorMessage = `HTTP error! status: ${response.status}`
         let serverMessage: string | string[] | null = null
         
+        const isAuthEndpoint = endpoint.startsWith('/auth/')
         try {
           const errorText = await response.text()
-          console.error(`❌ HTTP error! status: ${response.status}, body: ${errorText}`)
-          
+          if (!isAuthEndpoint) console.error(`❌ HTTP error! status: ${response.status}, body: ${errorText}`)
+
           // Try to parse as JSON for structured error messages
           try {
             const errorData = JSON.parse(errorText)
@@ -2002,7 +2016,6 @@ class AdminApiService {
 
       const text = await response.text()
       const data = text ? JSON.parse(text) : null
-      console.log('✅ Admin API response:', data)
       // Unwrap the standard envelope so callers receive `data` directly
       if (data && typeof data === 'object' && typeof data.success === 'boolean' && 'data' in data) {
         if (!data.success) {
@@ -2065,8 +2078,6 @@ class AdminApiService {
       clearGetCache()
       return { token: session.token, user: this.storeSession(session) }
     } catch (error) {
-      console.error(`❌ [Login] Attempt ${retryCount + 1} failed:`, error)
-
       // Retry only transient network failures, never bad credentials
       if (retryCount < maxRetries &&
           ((error as any).message?.includes('Network error') ||
@@ -2196,6 +2207,29 @@ class AdminApiService {
 
   async updateTrip(id: string, input: TripInput): Promise<void> {
     await this.request<unknown>(`/trips/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(input) })
+  }
+
+  // Shift schedules
+  async getShiftSchedules(activeOnly = true): Promise<ShiftScheduleRecord[]> {
+    const data = await this.request<ShiftScheduleRecord[] | { items: ShiftScheduleRecord[] }>(`/shift-schedules?activeOnly=${activeOnly}`)
+    return Array.isArray(data) ? data : data?.items ?? []
+  }
+
+  async getAvailableShiftSchedules(): Promise<ShiftScheduleRecord[]> {
+    const data = await this.request<ShiftScheduleRecord[]>('/shift-schedules/available')
+    return Array.isArray(data) ? data : []
+  }
+
+  async createShiftSchedule(input: ShiftScheduleInput): Promise<void> {
+    await this.request<unknown>('/shift-schedules', { method: 'POST', body: JSON.stringify(input) })
+  }
+
+  async updateShiftSchedule(id: string, input: ShiftScheduleInput): Promise<void> {
+    await this.request<unknown>(`/shift-schedules/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(input) })
+  }
+
+  async deactivateShiftSchedule(id: string): Promise<void> {
+    await this.request<unknown>(`/shift-schedules/${encodeURIComponent(id)}`, { method: 'DELETE' })
   }
 
   // Staff management
@@ -2411,9 +2445,9 @@ class AdminApiService {
       return []
     }
     const url = categoryId ? `/subcategories?categoryId=${categoryId}` : '/subcategories'
-    console.log('Admin API: Getting subcategories for categoryId:', categoryId, 'URL:', url)
+
     const result = await this.request<SubCategory[]>(url)
-    console.log('Admin API: Received subcategories:', result)
+
     return result
   }
 
@@ -2477,9 +2511,9 @@ class AdminApiService {
   // Products Management
   async getProducts(page: number = 1, limit: number = 10): Promise<{ products: DatabaseProduct[], total: number }> {
     if (USE_MOCK_DATA) {
-      console.log('📦 [API] Using mock products data')
+
       await new Promise(resolve => setTimeout(resolve, 200))
-      
+
       const mockProducts: DatabaseProduct[] = [
         {
           id: 1,
@@ -2533,18 +2567,16 @@ class AdminApiService {
           image_url: null
         }
       ]
-      
-      console.log('📦 [API] Returning mock products:', mockProducts)
+
       return { products: mockProducts, total: mockProducts.length }
     }
-    
-    console.log('📦 [API] Making real API call for products')
+
     try {
       const result = await this.request<{ products: Product[], total: number }>(`/admin/products?page=${page}&limit=${limit}`)
-      console.log('📦 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('📦 [API] Real API call failed:', error)
+
       throw error
     }
   }
@@ -2564,7 +2596,7 @@ class AdminApiService {
       await new Promise(resolve => setTimeout(resolve, 500))
       const category = mockCategories.find(c => c.id === productData.categoryId)
       if (!category) throw new Error('Category not found')
-      
+
       const newProduct: Product = {
         ...productData,
         id: Math.max(...mockProducts.map(p => p.id)) + 1,
@@ -2587,11 +2619,11 @@ class AdminApiService {
       await new Promise(resolve => setTimeout(resolve, 500))
       const index = mockProducts.findIndex(p => p.id === id)
       if (index === -1) throw new Error('Product not found')
-      
+
       const category = productData.categoryId ? 
         mockCategories.find(c => c.id === productData.categoryId) || mockProducts[index].category :
         mockProducts[index].category
-      
+
       mockProducts[index] = { 
         ...mockProducts[index], 
         ...productData, 
@@ -2851,15 +2883,15 @@ class AdminApiService {
 
   // Brands Management
   async getBrands(): Promise<Brand[]> {
-    console.log('🏷️ [API] getBrands called')
+
     if (USE_MOCK_DATA) {
-      console.log('  Using mock data (empty array)')
+
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
     }
-    console.log('  Making API request to /admin/brands')
+
     const result = await this.request<Brand[]>('/admin/brands')
-    console.log('  Brands API result:', result)
+
     return result
   }
 
@@ -2916,33 +2948,33 @@ class AdminApiService {
 
   // Notices Management
   async getNotices(countryId?: number, status?: number, limit?: number, offset?: number): Promise<Notice[]> {
-    console.log('📋 [API] getNotices called', { countryId, status, limit, offset })
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
     }
-    
+
     const params = new URLSearchParams()
     if (countryId) params.append('countryId', countryId.toString())
     if (status !== undefined) params.append('status', status.toString())
     if (limit) params.append('limit', limit.toString())
     if (offset) params.append('offset', offset.toString())
-    
+
     const url = `/notices${params.toString() ? `?${params.toString()}` : ''}`
     return this.request<Notice[]>(url)
   }
 
   async getActiveNotices(countryId?: number, limit?: number): Promise<Notice[]> {
-    console.log('📋 [API] getActiveNotices called', { countryId, limit })
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
     }
-    
+
     const params = new URLSearchParams()
     if (countryId) params.append('countryId', countryId.toString())
     if (limit) params.append('limit', limit.toString())
-    
+
     const url = `/notices/active${params.toString() ? `?${params.toString()}` : ''}`
     return this.request<Notice[]>(url)
   }
@@ -3017,12 +3049,9 @@ class AdminApiService {
 
   // Countries Management
   async getCountries(): Promise<Country[]> {
-    console.log('🌍 [API] getCountries called')
-    console.log('🌍 [API] USE_MOCK_DATA:', USE_MOCK_DATA)
-    console.log('🌍 [API] Auth token:', this.authToken ? 'Present' : 'Missing')
-    
+
     if (USE_MOCK_DATA) {
-      console.log('🌍 [API] Using mock data')
+
       await new Promise(resolve => setTimeout(resolve, 500))
       return [
         { id: 1, name: 'United States', status: 1 },
@@ -3030,16 +3059,15 @@ class AdminApiService {
         { id: 3, name: 'United Kingdom', status: 1 }
       ]
     }
-    
-    console.log('🌍 [API] Making real API call to /countries')
+
     try {
       const result = await this.request<Country[]>('/countries')
-      console.log('🌍 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('🌍 [API] Real API call failed:', error)
+
       // Fallback to mock data if API fails
-      console.log('🌍 [API] Falling back to mock data due to API failure')
+
       return [
         { id: 1, name: 'United States', status: 1 },
         { id: 2, name: 'Canada', status: 1 },
@@ -3098,9 +3126,9 @@ class AdminApiService {
 
   // Regions Management
   async getRegions(): Promise<Region[]> {
-    console.log('🌍 [API] getRegions called')
+
     if (USE_MOCK_DATA) {
-      console.log('🌍 [API] Using mock data for regions')
+
       await new Promise(resolve => setTimeout(resolve, 500))
       return [
         { id: 1, name: 'North America', countryId: 1, status: 1 },
@@ -3108,13 +3136,13 @@ class AdminApiService {
         { id: 3, name: 'Asia Pacific', countryId: 6, status: 1 }
       ]
     }
-    console.log('🌍 [API] Making real API call to /regions')
+
     try {
       const result = await this.request<Region[]>('/regions')
-      console.log('🌍 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('🌍 [API] Real API call failed:', error)
+
       return []
     }
   }
@@ -3162,7 +3190,7 @@ class AdminApiService {
     try {
       return await this.request<StationExpense[]>(`/station-expenses${qs}`)
     } catch (error) {
-      console.error('💸 [API] getStationExpenses failed:', error)
+
       return []
     }
   }
@@ -3201,7 +3229,7 @@ class AdminApiService {
     try {
       return await this.request<StationTank[]>(`/station-tanks${qs}`)
     } catch (error) {
-      console.error('⛽ [API] getStationTanks failed:', error)
+
       return []
     }
   }
@@ -3225,7 +3253,7 @@ class AdminApiService {
   }
 
   async getStationLpgLedger(stationId: number): Promise<StationLpgLedgerEntry[]> {
-    console.log('⛽ [API] getStationLpgLedger called for station:', stationId)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return []
@@ -3233,15 +3261,15 @@ class AdminApiService {
     try {
       return await this.request<StationLpgLedgerEntry[]>(`/stations/${stationId}/lpg-ledger`)
     } catch (error) {
-      console.error('⛽ [API] getStationLpgLedger failed:', error)
+
       return []
     }
   }
 
   async getStations(): Promise<Station[]> {
-    console.log('🚉 [API] getStations called')
+
     if (USE_MOCK_DATA) {
-      console.log('🚉 [API] Using mock data for stations')
+
       await new Promise(resolve => setTimeout(resolve, 500))
       return [
         { id: 1, name: 'Main Station', regionId: 1, contact: '123-456-7890' },
@@ -3249,13 +3277,13 @@ class AdminApiService {
         { id: 3, name: 'South Station', regionId: 1, contact: '345-678-9012' }
       ]
     }
-    console.log('🚉 [API] Making real API call to /stations')
+
     try {
       const result = await this.request<Station[]>('/stations')
-      console.log('🚉 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('🚉 [API] Real API call failed:', error)
+
       return []
     }
   }
@@ -3294,7 +3322,7 @@ class AdminApiService {
 
   // Shifts / Attendance
   async getShifts(stationId?: number, startDate?: string, endDate?: string): Promise<Shift[]> {
-    console.log('🕒 [API] getShifts called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
@@ -3308,13 +3336,13 @@ class AdminApiService {
     try {
       return await this.request<Shift[]>(url)
     } catch (error) {
-      console.error('🕒 [API] getShifts failed:', error)
+
       return []
     }
   }
 
   async getStaffLeaves(staffId?: number, startDate?: string, endDate?: string): Promise<StaffLeave[]> {
-    console.log('🌴 [API] getStaffLeaves called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
@@ -3328,13 +3356,13 @@ class AdminApiService {
     try {
       return await this.request<StaffLeave[]>(url)
     } catch (error) {
-      console.error('🌴 [API] getStaffLeaves failed:', error)
+
       return []
     }
   }
 
   async getSalesPostings(stationId?: number): Promise<SalesPosting[]> {
-    console.log('📝 [API] getSalesPostings called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
@@ -3343,13 +3371,13 @@ class AdminApiService {
     try {
       return await this.request<SalesPosting[]>(`/sales-postings${query}`)
     } catch (error) {
-      console.error('📝 [API] getSalesPostings failed:', error)
+
       return []
     }
   }
 
   async createSalesPosting(payload: CreateSalesPostingPayload): Promise<SalesPosting> {
-    console.log('📝 [API] createSalesPosting called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return { id: Date.now(), ...payload, notes: payload.notes || null, posted_by: null, created_at: new Date().toISOString() }
@@ -3361,7 +3389,7 @@ class AdminApiService {
   }
 
   async updateSalesPosting(id: number, payload: CreateSalesPostingPayload): Promise<SalesPosting> {
-    console.log('📝 [API] updateSalesPosting called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return { id, ...payload, notes: payload.notes || null, posted_by: null, created_at: new Date().toISOString() }
@@ -3374,9 +3402,9 @@ class AdminApiService {
 
   // Key Accounts Management
   async getKeyAccounts(): Promise<KeyAccount[]> {
-    console.log('🏢 [API] getKeyAccounts called')
+
     if (USE_MOCK_DATA) {
-      console.log('🏢 [API] Using mock data for key accounts')
+
       await new Promise(resolve => setTimeout(resolve, 500))
       return [
         { 
@@ -3403,13 +3431,13 @@ class AdminApiService {
         }
       ]
     }
-    console.log('🏢 [API] Making real API call to /key-accounts')
+
     try {
       const result = await this.request<KeyAccount[]>('/key-accounts')
-      console.log('🏢 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('🏢 [API] Real API call failed:', error)
+
       return []
     }
   }
@@ -3461,7 +3489,7 @@ class AdminApiService {
 
   // Conversion Clients Management
   async getConversionClients(): Promise<ConversionClient[]> {
-    console.log('👥 [API] getConversionClients called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
@@ -3469,13 +3497,13 @@ class AdminApiService {
     try {
       return await this.request<ConversionClient[]>('/conversion-clients')
     } catch (error) {
-      console.error('👥 [API] getConversionClients failed:', error)
+
       return []
     }
   }
 
   async getConversionClient(id: number): Promise<ConversionClient | null> {
-    console.log('👥 [API] getConversionClient called for id:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return null
@@ -3483,7 +3511,7 @@ class AdminApiService {
     try {
       return await this.request<ConversionClient>(`/conversion-clients/${id}`)
     } catch (error) {
-      console.error('👥 [API] getConversionClient failed:', error)
+
       return null
     }
   }
@@ -3535,7 +3563,7 @@ class AdminApiService {
 
   // Vehicles Management
   async getAllVehicles(): Promise<Vehicle[]> {
-    console.log('🚗 [API] getAllVehicles called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return [
@@ -3555,7 +3583,7 @@ class AdminApiService {
   }
 
   async getVehiclesByKeyAccount(keyAccountId: number): Promise<Vehicle[]> {
-    console.log('🚗 [API] getVehiclesByKeyAccount called for key account:', keyAccountId)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return [
@@ -3623,13 +3651,13 @@ class AdminApiService {
     try {
       return await this.request<ConversionVehicle[]>('/conversion-vehicles')
     } catch (error) {
-      console.error('🚗 [API] getAllConversionVehicles failed:', error)
+
       return []
     }
   }
 
   async getConversionVehiclesByClient(conversionClientId: number): Promise<ConversionVehicle[]> {
-    console.log('🚗 [API] getConversionVehiclesByClient called for conversion client:', conversionClientId)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return []
@@ -3637,13 +3665,13 @@ class AdminApiService {
     try {
       return await this.request<ConversionVehicle[]>(`/conversion-vehicles?conversionClientId=${conversionClientId}`)
     } catch (error) {
-      console.error('🚗 [API] getConversionVehiclesByClient failed:', error)
+
       return []
     }
   }
 
   async getConversionVehicle(id: number): Promise<ConversionVehicle | null> {
-    console.log('🚗 [API] getConversionVehicle called for id:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return null
@@ -3651,7 +3679,7 @@ class AdminApiService {
     try {
       return await this.request<ConversionVehicle>(`/conversion-vehicles/${id}`)
     } catch (error) {
-      console.error('🚗 [API] getConversionVehicle failed:', error)
+
       return null
     }
   }
@@ -3725,7 +3753,7 @@ class AdminApiService {
         body: JSON.stringify({ imageUrl })
       })
     } catch (error) {
-      console.error('🚗 [API] analyzeVehicleImage failed:', error)
+
       return null
     }
   }
@@ -3802,7 +3830,7 @@ class AdminApiService {
   }
 
   async getParts(): Promise<Part[]> {
-    console.log('📦 [API] getParts called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return []
@@ -3811,7 +3839,7 @@ class AdminApiService {
   }
 
   async getPartById(id: number): Promise<Part> {
-    console.log('📦 [API] getPartById called for part:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       throw new Error('Part not found')
@@ -3820,7 +3848,7 @@ class AdminApiService {
   }
 
   async createPart(partData: Omit<Part, 'id' | 'created_at' | 'updated_at'>): Promise<Part> {
-    console.log('📦 [API] createPart called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -3837,7 +3865,7 @@ class AdminApiService {
   }
 
   async updatePart(id: number, partData: Partial<Part>): Promise<Part> {
-    console.log('📦 [API] updatePart called for part:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -3853,7 +3881,7 @@ class AdminApiService {
   }
 
   async deletePart(id: number): Promise<void> {
-    console.log('📦 [API] deletePart called for part:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return
@@ -3865,7 +3893,7 @@ class AdminApiService {
 
   // Services (labour) Management
   async getServices(): Promise<Service[]> {
-    console.log('🧰 [API] getServices called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return []
@@ -3874,7 +3902,7 @@ class AdminApiService {
   }
 
   async createService(serviceData: Omit<Service, 'id' | 'created_at' | 'updated_at'>): Promise<Service> {
-    console.log('🧰 [API] createService called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -3891,7 +3919,7 @@ class AdminApiService {
   }
 
   async updateService(id: number, serviceData: Partial<Service>): Promise<Service> {
-    console.log('🧰 [API] updateService called for service:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -3907,7 +3935,7 @@ class AdminApiService {
   }
 
   async deleteService(id: number): Promise<void> {
-    console.log('🧰 [API] deleteService called for service:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return
@@ -3919,7 +3947,7 @@ class AdminApiService {
 
   // Job Cards Management
   async getJobCards(conversionVehicleId?: number, conversionClientId?: number): Promise<JobCard[]> {
-    console.log('🧾 [API] getJobCards called', conversionVehicleId ? `for vehicle: ${conversionVehicleId}` : '', conversionClientId ? `for client: ${conversionClientId}` : '')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return []
@@ -3932,7 +3960,7 @@ class AdminApiService {
   }
 
   async getJobCard(id: number): Promise<JobCard> {
-    console.log('🧾 [API] getJobCard called for job card:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       throw new Error('Job card not found')
@@ -3941,7 +3969,7 @@ class AdminApiService {
   }
 
   async createJobCard(data: Partial<JobCard>): Promise<JobCard> {
-    console.log('🧾 [API] createJobCard called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -3958,7 +3986,7 @@ class AdminApiService {
   }
 
   async updateJobCard(id: number, data: Partial<JobCard>): Promise<JobCard> {
-    console.log('🧾 [API] updateJobCard called for job card:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -3974,7 +4002,7 @@ class AdminApiService {
   }
 
   async deleteJobCard(id: number): Promise<void> {
-    console.log('🧾 [API] deleteJobCard called for job card:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return
@@ -3985,7 +4013,7 @@ class AdminApiService {
   }
 
   async convertJobCardToInvoice(id: number, data: { update_inventory: boolean; store_id?: number }): Promise<JobCard> {
-    console.log('🧾 [API] convertJobCardToInvoice called for job card:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return { id, status: 'not_paid' } as JobCard
@@ -3998,7 +4026,7 @@ class AdminApiService {
 
   // Job Card Payments
   async getAllPayments(): Promise<JobCardPayment[]> {
-    console.log('💰 [API] getAllPayments called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return []
@@ -4007,7 +4035,7 @@ class AdminApiService {
   }
 
   async getJobCardPayments(jobCardId: number): Promise<JobCardPayment[]> {
-    console.log('💰 [API] getJobCardPayments called for job card:', jobCardId)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return []
@@ -4025,7 +4053,7 @@ class AdminApiService {
       notes?: string
     }
   ): Promise<JobCardPayment> {
-    console.log('💰 [API] createJobCardPayment called for job card:', jobCardId)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4043,7 +4071,7 @@ class AdminApiService {
 
   // Vehicle Inspections
   async getVehicleInspections(conversionVehicleId: number): Promise<VehicleInspection[]> {
-    console.log('🔍 [API] getVehicleInspections called for vehicle:', conversionVehicleId)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return []
@@ -4052,7 +4080,7 @@ class AdminApiService {
   }
 
   async getVehicleInspection(id: number): Promise<VehicleInspection> {
-    console.log('🔍 [API] getVehicleInspection called for inspection:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       throw new Error('Inspection not found')
@@ -4061,7 +4089,7 @@ class AdminApiService {
   }
 
   async createVehicleInspection(data: Partial<VehicleInspection>): Promise<VehicleInspection> {
-    console.log('🔍 [API] createVehicleInspection called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4078,7 +4106,7 @@ class AdminApiService {
   }
 
   async updateVehicleInspection(id: number, data: Partial<VehicleInspection>): Promise<VehicleInspection> {
-    console.log('🔍 [API] updateVehicleInspection called for inspection:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4094,7 +4122,7 @@ class AdminApiService {
   }
 
   async deleteVehicleInspection(id: number): Promise<void> {
-    console.log('🔍 [API] deleteVehicleInspection called for inspection:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return
@@ -4106,7 +4134,7 @@ class AdminApiService {
 
   // Checklist Templates
   async getChecklistTemplates(): Promise<ChecklistTemplate[]> {
-    console.log('✅ [API] getChecklistTemplates called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return []
@@ -4115,7 +4143,7 @@ class AdminApiService {
   }
 
   async getChecklistTemplate(id: number): Promise<ChecklistTemplate> {
-    console.log('✅ [API] getChecklistTemplate called for template:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       throw new Error('Checklist template not found')
@@ -4124,7 +4152,7 @@ class AdminApiService {
   }
 
   async createChecklistTemplate(data: Partial<ChecklistTemplate>): Promise<ChecklistTemplate> {
-    console.log('✅ [API] createChecklistTemplate called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4141,7 +4169,7 @@ class AdminApiService {
   }
 
   async updateChecklistTemplate(id: number, data: Partial<ChecklistTemplate>): Promise<ChecklistTemplate> {
-    console.log('✅ [API] updateChecklistTemplate called for template:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4157,7 +4185,7 @@ class AdminApiService {
   }
 
   async deleteChecklistTemplate(id: number): Promise<void> {
-    console.log('✅ [API] deleteChecklistTemplate called for template:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return
@@ -4169,7 +4197,7 @@ class AdminApiService {
 
   // Appointments
   async getAppointments(): Promise<Appointment[]> {
-    console.log('📅 [API] getAppointments called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return []
@@ -4178,7 +4206,7 @@ class AdminApiService {
   }
 
   async createAppointment(data: Partial<Appointment>): Promise<Appointment> {
-    console.log('📅 [API] createAppointment called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4195,7 +4223,7 @@ class AdminApiService {
   }
 
   async updateAppointment(id: number, data: Partial<Appointment>): Promise<Appointment> {
-    console.log('📅 [API] updateAppointment called for appointment:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4211,7 +4239,7 @@ class AdminApiService {
   }
 
   async deleteAppointment(id: number): Promise<void> {
-    console.log('📅 [API] deleteAppointment called for appointment:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return
@@ -4223,7 +4251,7 @@ class AdminApiService {
 
   // Stores Management
   async getStores(): Promise<Store[]> {
-    console.log('🏪 [API] getStores called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return []
@@ -4232,7 +4260,7 @@ class AdminApiService {
   }
 
   async getStoreById(id: number): Promise<Store> {
-    console.log('🏪 [API] getStoreById called for store:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       throw new Error('Store not found')
@@ -4241,7 +4269,7 @@ class AdminApiService {
   }
 
   async createStore(storeData: Omit<Store, 'id' | 'created_at'>): Promise<Store> {
-    console.log('🏪 [API] createStore called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4257,7 +4285,7 @@ class AdminApiService {
   }
 
   async updateStore(id: number, storeData: Partial<Store>): Promise<Store> {
-    console.log('🏪 [API] updateStore called for store:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4273,7 +4301,7 @@ class AdminApiService {
   }
 
   async deleteStore(id: number): Promise<void> {
-    console.log('🏪 [API] deleteStore called for store:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return
@@ -4285,7 +4313,7 @@ class AdminApiService {
 
   // Parts Inventory Management
   async getInventory(storeId?: number, partId?: number): Promise<Inventory[]> {
-    console.log('📦 [API] getInventory called', storeId ? `for store: ${storeId}` : '', partId ? `for part: ${partId}` : '')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       return []
@@ -4299,7 +4327,7 @@ class AdminApiService {
   }
 
   async getInventoryById(id: number): Promise<Inventory> {
-    console.log('📦 [API] getInventoryById called for inventory:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       throw new Error('Inventory not found')
@@ -4308,7 +4336,7 @@ class AdminApiService {
   }
 
   async createInventory(inventoryData: Omit<Inventory, 'id' | 'last_updated'>): Promise<Inventory> {
-    console.log('📦 [API] createInventory called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4324,7 +4352,7 @@ class AdminApiService {
   }
 
   async updateInventory(id: number, inventoryData: Partial<Inventory>): Promise<Inventory> {
-    console.log('📦 [API] updateInventory called for inventory:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4340,7 +4368,7 @@ class AdminApiService {
   }
 
   async deleteInventory(id: number): Promise<void> {
-    console.log('📦 [API] deleteInventory called for inventory:', id)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return
@@ -4362,7 +4390,7 @@ class AdminApiService {
     notes?: string
     created_by?: number
   }): Promise<{ inventory: Inventory; ledger: PartLedgerEntry }> {
-    console.log('📦 [API] recordInventoryTransaction called', transaction.transaction_type, transaction.quantity, `store ${transaction.store_id}`, `part ${transaction.part_id}`)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       const now = new Date().toISOString()
@@ -4400,9 +4428,9 @@ class AdminApiService {
   }
 
   async getFuelPricesByStation(stationId: number): Promise<FuelPrice[]> {
-    console.log('⛽ [API] getFuelPricesByStation called for station:', stationId)
+
     if (USE_MOCK_DATA) {
-      console.log('⛽ [API] Using mock data for fuel prices')
+
       await new Promise(resolve => setTimeout(resolve, 500))
       return [
         { 
@@ -4423,13 +4451,13 @@ class AdminApiService {
         }
       ]
     }
-    console.log('⛽ [API] Making real API call to /fuel-prices/station/' + stationId)
+
     try {
       const result = await this.request<FuelPrice[]>(`/fuel-prices/station/${stationId}`)
-      console.log('⛽ [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('⛽ [API] Real API call failed:', error)
+
       return []
     }
   }
@@ -4457,7 +4485,7 @@ class AdminApiService {
 
   // Inventory
   async getStationInventory(): Promise<StationInventory[]> {
-    console.log('📦 [API] getStationInventory called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
@@ -4466,7 +4494,7 @@ class AdminApiService {
   }
 
   async getInventoryLedger(stationId?: number): Promise<InventoryLedger[]> {
-    console.log('📦 [API] getInventoryLedger called', stationId ? `for station: ${stationId}` : '')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
@@ -4476,7 +4504,7 @@ class AdminApiService {
   }
 
   async getInventoryReport(): Promise<InventoryLedger[]> {
-    console.log('📦 [API] getInventoryReport called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
@@ -4492,7 +4520,7 @@ class AdminApiService {
     notes?: string
     createdBy?: number
   }): Promise<InventoryLedger> {
-    console.log('📦 [API] createInventoryLedger called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4535,7 +4563,7 @@ class AdminApiService {
 
   // Key Account Ledger Management
   async getKeyAccountLedger(keyAccountId?: number): Promise<KeyAccountLedger[]> {
-    console.log('💰 [API] getKeyAccountLedger called', keyAccountId ? `for key account: ${keyAccountId}` : '')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
@@ -4545,7 +4573,7 @@ class AdminApiService {
   }
 
   async getKeyAccountLedgerByKeyAccount(keyAccountId: number): Promise<KeyAccountLedger[]> {
-    console.log('💰 [API] getKeyAccountLedgerByKeyAccount called for key account:', keyAccountId)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
@@ -4569,7 +4597,7 @@ class AdminApiService {
     notes?: string
     createdBy?: number
   }): Promise<KeyAccountLedger> {
-    console.log('💰 [API] createKeyAccountLedger called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4608,7 +4636,7 @@ class AdminApiService {
     notes?: string
     createdBy?: number
   }): Promise<Sale> {
-    console.log('💰 [API] createSale called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4625,7 +4653,7 @@ class AdminApiService {
   }
 
   async getSales(stationId?: number, keyAccountId?: number, conversionClientId?: number): Promise<Sale[]> {
-    console.log('💰 [API] getSales called', stationId ? `for station: ${stationId}` : '', keyAccountId ? `for key account: ${keyAccountId}` : '', conversionClientId ? `for conversion client: ${conversionClientId}` : '')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
@@ -4656,7 +4684,7 @@ class AdminApiService {
   }
 
   async getWeeklySalesReport(startDate: string, endDate: string, stationId?: number): Promise<WeeklySalesReport> {
-    console.log('💰 [API] getWeeklySalesReport called', startDate, '→', endDate)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return { startDate, endDate, vehicles: [] }
@@ -4667,7 +4695,7 @@ class AdminApiService {
   }
 
   async getVehicleFuelReport(startDate: string, endDate: string, stationId?: number): Promise<VehicleFuelReport> {
-    console.log('⛽ [API] getVehicleFuelReport called', startDate, '→', endDate)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return { startDate, endDate, vehicles: [] }
@@ -4694,7 +4722,7 @@ class AdminApiService {
     logbookNumber?: string
     createdBy?: number
   }): Promise<Conversion> {
-    console.log('🔧 [API] createConversion called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4711,7 +4739,7 @@ class AdminApiService {
   }
 
   async getConversions(): Promise<Conversion[]> {
-    console.log('🔧 [API] getConversions called')
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
@@ -4720,7 +4748,7 @@ class AdminApiService {
   }
 
   async getConversionById(id: number): Promise<Conversion> {
-    console.log(`🔧 [API] getConversionById called for id: ${id}`)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       throw new Error('Conversion not found')
@@ -4729,7 +4757,7 @@ class AdminApiService {
   }
 
   async updateConversion(id: number, updateData: Partial<Conversion>): Promise<Conversion> {
-    console.log(`🔧 [API] updateConversion called for id: ${id}`)
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return {
@@ -4764,7 +4792,7 @@ class AdminApiService {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       const orders = await this.getOrders()
-      
+
       const targetYear = year || new Date().getFullYear()
       const filteredOrders = orders.filter(order => 
         new Date(order.createdAt).getFullYear() === targetYear
@@ -4783,7 +4811,7 @@ class AdminApiService {
       })
 
       const clientMap = new Map<number, { client: User; totalOrders: number; totalRevenue: number }>()
-      
+
       filteredOrders.forEach(order => {
         if (!clientMap.has(order.userId)) {
           clientMap.set(order.userId, {
@@ -4828,19 +4856,18 @@ class AdminApiService {
     }>(`/admin/sales/analytics${year ? `?year=${year}` : ''}`)
   }
 
-
   // Sales Orders API (using sales_orders table)
   async getSalesOrders(year?: number, limit?: number, offset?: number): Promise<SalesOrder[]> {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
       return []
     }
-    
+
     const params = new URLSearchParams()
     if (year) params.append('year', year.toString())
     if (limit) params.append('limit', limit.toString())
     if (offset) params.append('offset', offset.toString())
-    
+
     const url = `/admin/sales/orders${params.toString() ? `?${params.toString()}` : ''}`
     return this.request<SalesOrder[]>(url)
   }
@@ -4862,7 +4889,7 @@ class AdminApiService {
   }>> {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       // Mock clients data based on the schema
       const mockClients = [
         {
@@ -4950,10 +4977,10 @@ class AdminApiService {
           longitude: -80.1918
         }
       ]
-      
+
       return mockClients
     }
-    
+
     const url = '/admin/sales/clients-list'
     return this.request<Array<{
       id: number
@@ -4993,7 +5020,7 @@ class AdminApiService {
   } | null> {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       // Return mock sales data for the client
       const mockSalesData = {
         clientId,
@@ -5014,10 +5041,10 @@ class AdminApiService {
         totalAmount: Math.floor(Math.random() * 100000),
         averageOrderValue: Math.floor(Math.random() * 5000)
       }
-      
+
       return mockSalesData
     }
-    
+
     const url = `/admin/sales/client/${clientId}/sales${year ? `?year=${year}` : ''}`
     return this.request<{
       clientId: number
@@ -5042,13 +5069,11 @@ class AdminApiService {
 
   // Get order items for a specific client and month
   async getClientOrderItems(clientId: number, year: number, month: number): Promise<OrderItem[]> {
-    console.log(`🔍 [API getClientOrderItems] Called with clientId: ${clientId}, year: ${year}, month: ${month}`)
-    console.log(`🔍 [API getClientOrderItems] USE_MOCK_DATA: ${USE_MOCK_DATA}`)
-    
+
     if (USE_MOCK_DATA) {
-      console.log(`📦 [API getClientOrderItems] Using mock data...`)
+
       await new Promise(resolve => setTimeout(resolve, 300))
-      
+
       // Mock order items data
       const mockOrderItems: OrderItem[] = [
         {
@@ -5107,20 +5132,18 @@ class AdminApiService {
           soNumber: 'SO-003'
         }
       ]
-      
-      console.log(`✅ [API getClientOrderItems] Returning mock data:`, mockOrderItems)
+
       return mockOrderItems
     }
-    
+
     const url = `/admin/sales/client/${clientId}/order-items?year=${year}&month=${month}`
-    console.log(`🌐 [API getClientOrderItems] Making API request to: ${url}`)
-    
+
     try {
       const result = await this.request<OrderItem[]>(url)
-      console.log(`✅ [API getClientOrderItems] API request successful:`, result)
+
       return result
     } catch (error) {
-      console.error(`❌ [API getClientOrderItems] API request failed:`, error)
+
       throw error
     }
   }
@@ -5147,7 +5170,7 @@ class AdminApiService {
   }>> {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
-      
+
       // Return mock sales data for multiple clients
       return clientIds.map(clientId => ({
         clientId,
@@ -5169,7 +5192,7 @@ class AdminApiService {
         averageOrderValue: Math.floor(Math.random() * 5000)
       }))
     }
-    
+
     const url = `/admin/sales/bulk-sales-data`
     return this.request<Array<{
       clientId: number
@@ -5200,13 +5223,11 @@ class AdminApiService {
 
   // Get product performance data
   async getProductPerformance(year?: number): Promise<ProductPerformanceData[]> {
-    console.log(`🔍 [API getProductPerformance] Called with year: ${year}`)
-    console.log(`🔍 [API getProductPerformance] USE_MOCK_DATA: ${USE_MOCK_DATA}`)
-    
+
     if (USE_MOCK_DATA) {
-      console.log(`📦 [API getProductPerformance] Using mock data...`)
+
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       // Mock product performance data
       const mockProductPerformance: ProductPerformanceData[] = [
         {
@@ -5279,33 +5300,29 @@ class AdminApiService {
           ]
         }
       ]
-      
-      console.log(`✅ [API getProductPerformance] Returning mock data:`, mockProductPerformance)
+
       return mockProductPerformance
     }
-    
+
     const url = `/admin/sales/products/performance${year ? `?year=${year}` : ''}`
-    console.log(`🌐 [API getProductPerformance] Making API request to: ${url}`)
-    
+
     try {
       const result = await this.request<ProductPerformanceData[]>(url)
-      console.log(`✅ [API getProductPerformance] API request successful:`, result)
+
       return result
     } catch (error) {
-      console.error(`❌ [API getProductPerformance] API request failed:`, error)
+
       throw error
     }
   }
 
   // Get product performance summary
   async getProductPerformanceSummary(year?: number): Promise<ProductPerformanceSummary> {
-    console.log(`🔍 [API getProductPerformanceSummary] Called with year: ${year}`)
-    console.log(`🔍 [API getProductPerformanceSummary] USE_MOCK_DATA: ${USE_MOCK_DATA}`)
-    
+
     if (USE_MOCK_DATA) {
-      console.log(`📦 [API getProductPerformanceSummary] Using mock data...`)
+
       await new Promise(resolve => setTimeout(resolve, 200))
-      
+
       const mockSummary: ProductPerformanceSummary = {
         totalProducts: 3,
         totalRevenue: 1110.05,
@@ -5316,20 +5333,18 @@ class AdminApiService {
           revenue: 449.82
         }
       }
-      
-      console.log(`✅ [API getProductPerformanceSummary] Returning mock data:`, mockSummary)
+
       return mockSummary
     }
-    
+
     const url = `/admin/sales/products/performance/summary${year ? `?year=${year}` : ''}`
-    console.log(`🌐 [API getProductPerformanceSummary] Making API request to: ${url}`)
-    
+
     try {
       const result = await this.request<ProductPerformanceSummary>(url)
-      console.log(`✅ [API getProductPerformanceSummary] API request successful:`, result)
+
       return result
     } catch (error) {
-      console.error(`❌ [API getProductPerformanceSummary] API request failed:`, error)
+
       throw error
     }
   }
@@ -5355,7 +5370,7 @@ class AdminApiService {
   }>> {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       // Mock clients data - showing ALL clients (even those with no sales)
       const mockClients = [
         {
@@ -5541,10 +5556,10 @@ class AdminApiService {
           averageOrderValue: 0
         }
       ]
-      
+
       return mockClients
     }
-    
+
     const url = `/admin/sales/clients${year ? `?year=${year}` : ''}`
     return this.request<Array<{
       clientId: number
@@ -5570,26 +5585,21 @@ class AdminApiService {
   // Receivable Aging API methods
   async getReceivableAging(): Promise<ReceivableAgingData[]> {
     const url = '/admin/receivable-aging';
-    console.log(`🔍 [API] Fetching receivable aging from: ${url}`);
-    
+
     return this.request<ReceivableAgingData[]>(url);
   }
 
   async getReceivableAgingSummary(): Promise<ReceivableAgingSummary> {
     const url = '/admin/receivable-aging/summary';
-    console.log(`🔍 [API] Fetching receivable aging summary from: ${url}`);
-    
+
     return this.request<ReceivableAgingSummary>(url);
   }
 
   // Invoices API methods
   async getInvoices(page: number = 1, limit: number = 10, search?: string, status?: string, myStatus?: number): Promise<{ invoices: InvoiceData[], total: number }> {
-    console.log('🔍 [getInvoices] Starting invoice fetch...', { page, limit, search, status, myStatus });
-    console.log('🔍 [getInvoices] USE_MOCK_DATA:', USE_MOCK_DATA);
-    
+
     if (USE_MOCK_DATA) {
-      console.log('📊 [getInvoices] Using mock data for getInvoices');
-      
+
       const mockInvoices: InvoiceData[] = [
         {
           id: 1,
@@ -5794,33 +5804,26 @@ class AdminApiService {
       page: page.toString(),
       limit: limit.toString(),
     });
-    
+
     if (search) params.append('search', search);
     if (status) params.append('status', status);
     if (myStatus) params.append('myStatus', myStatus);
-    
+
     const url = `/admin/invoices?${params.toString()}`;
-    console.log(`🌐 [getInvoices] Making API request to: ${url}`);
-    
+
     try {
       const response = await this.request<{ invoices: InvoiceData[], total: number }>(url);
-      console.log('✅ [getInvoices] API request successful:', response?.invoices?.length || 0, 'invoices, total:', response?.total || 0);
-      console.log('📊 [getInvoices] Sample data:', response?.invoices?.slice(0, 2));
+
       return response;
     } catch (error) {
-      console.error('❌ [getInvoices] API request failed:', error);
-      console.error('❌ [getInvoices] Error details:', {
-        message: (error as any)?.message,
-        status: (error as any)?.status,
-        response: (error as any)?.response
-      });
+
       throw error;
     }
   }
 
   async getInvoiceSummary(): Promise<InvoiceSummary> {
     if (USE_MOCK_DATA) {
-      console.log('🔍 [API] Using mock data for getInvoiceSummary');
+
       return {
         totalInvoices: 5,
         totalAmount: 22600,
@@ -5846,14 +5849,13 @@ class AdminApiService {
     }
 
     const url = '/admin/invoices/summary';
-    console.log(`🔍 [API] Fetching invoice summary from: ${url}`);
-    
+
     return this.request<InvoiceSummary>(url);
   }
 
   async getInvoiceById(id: number): Promise<InvoiceData | null> {
     if (USE_MOCK_DATA) {
-      console.log(`🔍 [API] Using mock data for getInvoiceById ${id}`);
+
       // Return the first mock invoice for any ID
       return {
         id: 1,
@@ -5891,14 +5893,13 @@ class AdminApiService {
     }
 
     const url = `/admin/invoices/${id}`;
-    console.log(`🔍 [API] Fetching invoice ${id} from: ${url}`);
-    
+
     return this.request<InvoiceData | null>(url);
   }
 
   async getInvoiceOrderItems(id: number): Promise<any[]> {
     if (USE_MOCK_DATA) {
-      console.log(`🔍 [API] Using mock data for getInvoiceOrderItems ${id}`);
+
       return [
         {
           id: 1,
@@ -5949,18 +5950,17 @@ class AdminApiService {
     }
 
     const url = `/admin/invoices/${id}/order-items`;
-    console.log(`🔍 [API] Fetching order items for invoice ${id} from: ${url}`);
-    
+
     return this.request<any[]>(url);
   }
 
   // Sales Representatives Management
   async getSalesReps(): Promise<SalesRep[]> {
-    console.log('👥 [API] getSalesReps called')
+
     if (USE_MOCK_DATA) {
-      console.log('  Using mock data')
+
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       // Mock sales reps data based on the schema
       const mockSalesReps: SalesRep[] = [
         {
@@ -6077,10 +6077,10 @@ class AdminApiService {
           createdAt: '2024-03-15T16:20:00Z'
         }
       ]
-      
+
       return mockSalesReps
     }
-    
+
     return this.request<SalesRep[]>('/sales-reps')
   }
 
@@ -6140,16 +6140,16 @@ class AdminApiService {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       const salesReps = await this.getSalesReps()
-      
+
       const total = salesReps.length
       const active = salesReps.filter(rep => rep.status === 1).length
       const inactive = total - active
-      
+
       const byCountry = salesReps.reduce((acc, rep) => {
         acc[rep.country] = (acc[rep.country] || 0) + 1
         return acc
       }, {} as Record<string, number>)
-      
+
       const byRegion = salesReps.reduce((acc, rep) => {
         acc[rep.region] = (acc[rep.region] || 0) + 1
         return acc
@@ -6163,18 +6163,16 @@ class AdminApiService {
         byRegion
       }
     }
-    
+
     return this.request<SalesRepStats>('/sales-reps/stats')
   }
 
   async getSalesRepCountries(): Promise<Country[]> {
-    console.log('🌍 [API] getSalesRepCountries called')
-    console.log('🌍 [API] USE_MOCK_DATA:', USE_MOCK_DATA)
-    
+
     if (USE_MOCK_DATA) {
-      console.log('🌍 [API] Using mock data')
+
       await new Promise(resolve => setTimeout(resolve, 300))
-      
+
       // Mock countries data
       const mockCountries: Country[] = [
         { id: 1, name: 'United States', status: 1 },
@@ -6188,28 +6186,26 @@ class AdminApiService {
         { id: 9, name: 'India', status: 1 },
         { id: 10, name: 'China', status: 1 }
       ]
-      
-      console.log('🌍 [API] Returning mock countries:', mockCountries)
+
       return mockCountries
     }
-    
-    console.log('🌍 [API] Making real API call to /sales-reps/countries')
+
     try {
       const result = await this.request<Country[]>('/sales-reps/countries')
-      console.log('🌍 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('🌍 [API] Real API call failed:', error)
+
       throw error
     }
   }
 
   async getSalesRepRegions(countryId?: number): Promise<Region[]> {
-    console.log('🌍 [API] getSalesRepRegions called', { countryId })
+
     if (USE_MOCK_DATA) {
-      console.log('  Using mock data')
+
       await new Promise(resolve => setTimeout(resolve, 300))
-      
+
       // Mock regions data
       const mockRegions: Region[] = [
         { id: 1, name: 'Nairobi', countryId: 1, status: 1 },
@@ -6218,36 +6214,34 @@ class AdminApiService {
         { id: 4, name: 'North Region', countryId: 1, status: 1 },
         { id: 5, name: 'West Region', countryId: 1, status: 1 }
       ]
-      
+
       const filteredRegions = countryId 
         ? mockRegions.filter(region => region.countryId === countryId)
         : mockRegions
-      
-      console.log('🌍 [API] Returning mock regions:', filteredRegions)
+
       return filteredRegions
     }
-    
+
     const url = countryId 
       ? `/sales-reps/regions?countryId=${countryId}`
       : '/sales-reps/regions'
-    
-    console.log('🌍 [API] Making real API call to:', url)
+
     try {
       const result = await this.request<Region[]>(url)
-      console.log('🌍 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('🌍 [API] Real API call failed:', error)
+
       throw error
     }
   }
 
   async getSalesRepRoutes(regionId?: number): Promise<Route[]> {
-    console.log('🛣️ [API] getSalesRepRoutes called', { regionId })
+
     if (USE_MOCK_DATA) {
-      console.log('  Using mock data')
+
       await new Promise(resolve => setTimeout(resolve, 300))
-      
+
       // Mock routes data
       const mockRoutes: Route[] = [
         {
@@ -6290,26 +6284,24 @@ class AdminApiService {
           status: 1
         }
       ]
-      
+
       const filteredRoutes = regionId 
         ? mockRoutes.filter(route => route.region === regionId)
         : mockRoutes
-      
-      console.log('🛣️ [API] Returning mock routes:', filteredRoutes)
+
       return filteredRoutes
     }
-    
+
     const url = regionId 
       ? `/sales-reps/routes?regionId=${regionId}`
       : '/sales-reps/routes'
-    
-    console.log('🛣️ [API] Making real API call to:', url)
+
     try {
       const result = await this.request<Route[]>(url)
-      console.log('🛣️ [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('🛣️ [API] Real API call failed:', error)
+
       throw error
     }
   }
@@ -6323,37 +6315,16 @@ class AdminApiService {
     limit: number = 50,
     offset: number = 0
   ): Promise<AttendanceRecord[]> {
-    console.log('📊 [API] getSalesRepAttendanceRecords called', {
-      salesRepId,
-      startDate,
-      endDate,
-      status,
-      limit,
-      offset
-    })
-    
-    console.log('📊 [API] Raw parameters received:', {
-      salesRepIdType: typeof salesRepId,
-      salesRepIdValue: salesRepId,
-      startDateType: typeof startDate,
-      startDateValue: startDate,
-      endDateType: typeof endDate,
-      endDateValue: endDate,
-      statusType: typeof status,
-      statusValue: status
-    })
 
     if (USE_MOCK_DATA) {
-      console.log('  Using mock data')
+
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       // Mock attendance records
       const today = new Date().toISOString().split('T')[0]
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      
-      console.log('📊 [API] Mock data - Using dates:', { today, yesterday, tomorrow })
-      
+
       const mockRecords: AttendanceRecord[] = [
         {
           id: 1,
@@ -6457,62 +6428,44 @@ class AdminApiService {
 
       // Apply filters
       let filteredRecords = mockRecords
-      
-      console.log('📊 [API] Mock records before filtering:', mockRecords.map(r => ({
-        id: r.id,
-        sessionStart: r.sessionStart,
-        sessionEnd: r.sessionEnd
-      })))
 
       if (salesRepId) {
-        console.log('📊 [API] Filtering by salesRepId:', salesRepId)
+
         filteredRecords = filteredRecords.filter(record => record.userId === salesRepId)
       }
 
       if (status !== undefined) {
-        console.log('📊 [API] Filtering by status:', status)
+
         filteredRecords = filteredRecords.filter(record => record.status === status)
       }
 
       if (startDate) {
-        console.log('📊 [API] Filtering by startDate:', startDate)
+
         // Extract just the date part from sessionStart for comparison
         filteredRecords = filteredRecords.filter(record => {
           const recordDate = record.sessionStart.split(' ')[0] // Get YYYY-MM-DD part
           const result = recordDate >= startDate
-          console.log('📊 [API] Comparing:', recordDate, '>=', startDate, '=', result)
+
           return result
         })
-        console.log('📊 [API] Records after startDate filter:', filteredRecords.map(r => ({
-          id: r.id,
-          sessionStart: r.sessionStart
-        })))
+
       }
 
       if (endDate) {
-        console.log('📊 [API] Filtering by endDate:', endDate)
+
         // Extract just the date part from sessionStart for comparison
         filteredRecords = filteredRecords.filter(record => {
           const recordDate = record.sessionStart.split(' ')[0] // Get YYYY-MM-DD part
           const result = recordDate <= endDate
-          console.log('📊 [API] Comparing:', recordDate, '<=', endDate, '=', result)
+
           return result
         })
-        console.log('📊 [API] Records after endDate filter:', filteredRecords.map(r => ({
-          id: r.id,
-          sessionStart: r.sessionStart
-        })))
+
       }
 
       // Apply pagination
       const paginatedRecords = filteredRecords.slice(offset, offset + limit)
 
-      console.log('📊 [API] Returning mock attendance records:', paginatedRecords.map(r => ({
-        id: r.id,
-        sessionStart: r.sessionStart,
-        sessionEnd: r.sessionEnd,
-        duration: r.duration
-      })))
       return paginatedRecords
     }
 
@@ -6525,20 +6478,13 @@ class AdminApiService {
     params.append('offset', offset.toString())
 
     const url = `/sales-reps/attendance/records?${params.toString()}`
-    console.log('📊 [API] Making real API call to:', url)
-    console.log('📊 [API] URL parameters:', params.toString())
-    
+
     try {
       const result = await this.request<AttendanceRecord[]>(url)
-      console.log('📊 [API] Real API call result:', result.map(r => ({
-        id: r.id,
-        sessionStart: r.sessionStart,
-        sessionEnd: r.sessionEnd,
-        duration: r.duration
-      })))
+
       return result
     } catch (error) {
-      console.error('📊 [API] Real API call failed:', error)
+
       throw error
     }
   }
@@ -6547,12 +6493,11 @@ class AdminApiService {
     startDate?: string,
     endDate?: string
   ): Promise<AttendanceStats> {
-    console.log('📊 [API] getSalesRepAttendanceStats called', { startDate, endDate })
 
     if (USE_MOCK_DATA) {
-      console.log('  Using mock data')
+
       await new Promise(resolve => setTimeout(resolve, 300))
-      
+
       const mockStats: AttendanceStats = {
         totalSessions: 5,
         totalDuration: 2100, // 35 hours in minutes (sum of all durations)
@@ -6575,7 +6520,6 @@ class AdminApiService {
         }
       }
 
-      console.log('📊 [API] Returning mock attendance stats:', mockStats)
       return mockStats
     }
 
@@ -6584,25 +6528,24 @@ class AdminApiService {
     if (endDate) params.append('endDate', endDate)
 
     const url = `/sales-reps/attendance/stats?${params.toString()}`
-    console.log('📊 [API] Making real API call to:', url)
-    
+
     try {
       const result = await this.request<AttendanceStats>(url)
-      console.log('📊 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('📊 [API] Real API call failed:', error)
+
       throw error
     }
   }
 
   // Staff Management
   async getStaff(role?: string): Promise<Staff[]> {
-    console.log('👥 [API] getStaff called', role ? `for role: ${role}` : '')
+
     if (USE_MOCK_DATA) {
-      console.log('  Using mock data')
+
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       // Mock staff data based on the schema
       const mockStaff: Staff[] = [
         {
@@ -6721,19 +6664,17 @@ class AdminApiService {
           status: 1
         }
       ]
-      
-      console.log('👥 [API] Returning mock staff:', mockStaff)
+
       return mockStaff
     }
-    
-    console.log('👥 [API] Making real API call')
+
     try {
       const url = role ? `/staff?role=${encodeURIComponent(role)}` : '/staff'
       const result = await this.request<Staff[]>(url)
-      console.log('👥 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('👥 [API] Real API call failed:', error)
+
       throw error
     }
   }
@@ -6795,17 +6736,17 @@ class AdminApiService {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300))
       const staff = await this.getStaff()
-      
+
       const total = staff.length
       const active = staff.filter(member => member.is_active === 1).length
       const inactive = total - active
-      
+
       const byDepartment = staff.reduce((acc, member) => {
         const dept = member.department || 'Unknown'
         acc[dept] = (acc[dept] || 0) + 1
         return acc
       }, {} as Record<string, number>)
-      
+
       const byRole = staff.reduce((acc, member) => {
         const role = member.role || 'Unknown'
         acc[role] = (acc[role] || 0) + 1
@@ -6853,28 +6794,26 @@ class AdminApiService {
 
   // Image Upload
   async uploadStaffImage(imageFile: File): Promise<{ url: string; public_id: string }> {
-    console.log('📷 [API] uploadStaffImage called')
-    
+
     const formData = new FormData()
     formData.append('image', imageFile)
-    
+
     try {
       const result = await this.request<{ url: string; public_id: string }>('/staff/upload-image', {
         method: 'POST',
         body: formData
         // Don't pass headers - request method will handle FormData correctly
       })
-      console.log('📷 [API] Image upload result:', result)
+
       return result
     } catch (error) {
-      console.error('📷 [API] Image upload failed:', error)
+
       throw error
     }
   }
 
   async uploadStaffImageBase64(base64Data: string): Promise<{ url: string; public_id: string }> {
-    console.log('📷 [API] uploadStaffImageBase64 called')
-    
+
     try {
       const result = await this.request<{ url: string; public_id: string }>('/staff/upload-image-base64', {
         method: 'POST',
@@ -6883,17 +6822,17 @@ class AdminApiService {
         },
         body: JSON.stringify({ image: base64Data })
       })
-      console.log('📷 [API] Base64 image upload result:', result)
+
       return result
     } catch (error) {
-      console.error('📷 [API] Base64 image upload failed:', error)
+
       throw error
     }
   }
 
   // Crew Management
   async getCrew(page: number = 1, limit: number = 50): Promise<{ crew: Crew[], total: number }> {
-    console.log('👨‍✈️ [API] getCrew called', { page, limit })
+
     return this.request<{ crew: Crew[], total: number }>(`/admin/crew?page=${page}&limit=${limit}`)
   }
 
@@ -6923,11 +6862,11 @@ class AdminApiService {
 
   // Department Management
   async getDepartments(): Promise<Department[]> {
-    console.log('🏢 [API] getDepartments called')
+
     if (USE_MOCK_DATA) {
-      console.log('  Using mock data')
+
       await new Promise(resolve => setTimeout(resolve, 300))
-      
+
       // Mock departments data
       const mockDepartments: Department[] = [
         { id: 1, name: 'Sales', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
@@ -6936,18 +6875,16 @@ class AdminApiService {
         { id: 4, name: 'Human Resources', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
         { id: 5, name: 'Marketing', created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
       ]
-      
-      console.log('🏢 [API] Returning mock departments:', mockDepartments)
+
       return mockDepartments
     }
-    
-    console.log('🏢 [API] Making real API call')
+
     try {
       const result = await this.request<Department[]>('/staff/departments')
-      console.log('🏢 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('🏢 [API] Real API call failed:', error)
+
       throw error
     }
   }
@@ -7008,9 +6945,9 @@ class AdminApiService {
   // Suppliers API methods
   async getSuppliers(page: number = 1, limit: number = 10, search?: string, status?: string): Promise<{ suppliers: Supplier[], total: number }> {
     if (USE_MOCK_DATA) {
-      console.log('🏢 [API] Using mock suppliers data')
+
       await new Promise(resolve => setTimeout(resolve, 300))
-      
+
       const mockSuppliers: Supplier[] = [
         {
           id: 1,
@@ -7058,9 +6995,9 @@ class AdminApiService {
           updated_at: '2024-02-01T09:15:00Z'
         }
       ]
-      
+
       let filteredSuppliers = mockSuppliers
-      
+
       if (search) {
         filteredSuppliers = mockSuppliers.filter(supplier => 
           supplier.company_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -7069,22 +7006,20 @@ class AdminApiService {
           supplier.supplier_code.toLowerCase().includes(search.toLowerCase())
         )
       }
-      
+
       if (status === 'active') {
         filteredSuppliers = filteredSuppliers.filter(supplier => supplier.is_active)
       } else if (status === 'inactive') {
         filteredSuppliers = filteredSuppliers.filter(supplier => !supplier.is_active)
       }
-      
+
       const startIndex = (page - 1) * limit
       const endIndex = startIndex + limit
       const paginatedSuppliers = filteredSuppliers.slice(startIndex, endIndex)
-      
-      console.log('🏢 [API] Returning mock suppliers:', paginatedSuppliers)
+
       return { suppliers: paginatedSuppliers, total: filteredSuppliers.length }
     }
-    
-    console.log('🏢 [API] Making real API call for suppliers')
+
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -7092,39 +7027,37 @@ class AdminApiService {
         ...(search && { search }),
         ...(status && { status })
       })
-      
+
       const result = await this.request<{ suppliers: Supplier[], total: number }>(`/admin/suppliers?${params}`)
-      console.log('🏢 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('🏢 [API] Real API call failed:', error)
+
       throw error
     }
   }
 
   async getSupplierStats(): Promise<SupplierStats> {
     if (USE_MOCK_DATA) {
-      console.log('🏢 [API] Using mock supplier stats')
+
       await new Promise(resolve => setTimeout(resolve, 200))
-      
+
       const mockStats: SupplierStats = {
         total: 3,
         active: 2,
         inactive: 1,
         totalCreditLimit: 225000.00
       }
-      
-      console.log('🏢 [API] Returning mock supplier stats:', mockStats)
+
       return mockStats
     }
-    
-    console.log('🏢 [API] Making real API call for supplier stats')
+
     try {
       const result = await this.request<SupplierStats>('/admin/suppliers/stats')
-      console.log('🏢 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('🏢 [API] Real API call failed:', error)
+
       throw error
     }
   }
@@ -7185,9 +7118,9 @@ class AdminApiService {
   // Purchase Orders API methods
   async getLegacyPurchaseOrders(page: number = 1, limit: number = 10, search?: string, status?: string, supplierId?: number): Promise<{ purchaseOrders: PurchaseOrder[], total: number }> {
     if (USE_MOCK_DATA) {
-      console.log('📋 [API] Using mock purchase orders data')
+
       await new Promise(resolve => setTimeout(resolve, 300))
-      
+
       const mockPurchaseOrders: PurchaseOrder[] = [
         {
           id: 1,
@@ -7256,9 +7189,9 @@ class AdminApiService {
           }
         }
       ]
-      
+
       let filteredOrders = mockPurchaseOrders
-      
+
       if (search) {
         filteredOrders = mockPurchaseOrders.filter(order => 
           order.po_number.toLowerCase().includes(search.toLowerCase()) ||
@@ -7266,24 +7199,22 @@ class AdminApiService {
           order.supplier?.company_name.toLowerCase().includes(search.toLowerCase())
         )
       }
-      
+
       if (status) {
         filteredOrders = filteredOrders.filter(order => order.status === status)
       }
-      
+
       if (supplierId) {
         filteredOrders = filteredOrders.filter(order => order.supplier_id === supplierId)
       }
-      
+
       const startIndex = (page - 1) * limit
       const endIndex = startIndex + limit
       const paginatedOrders = filteredOrders.slice(startIndex, endIndex)
-      
-      console.log('📋 [API] Returning mock purchase orders:', paginatedOrders)
+
       return { purchaseOrders: paginatedOrders, total: filteredOrders.length }
     }
-    
-    console.log('📋 [API] Making real API call for purchase orders')
+
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -7292,21 +7223,21 @@ class AdminApiService {
         ...(status && { status }),
         ...(supplierId && { supplierId: supplierId.toString() })
       })
-      
+
       const result = await this.request<{ purchaseOrders: PurchaseOrder[], total: number }>(`/admin/purchase-orders?${params}`)
-      console.log('📋 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('📋 [API] Real API call failed:', error)
+
       throw error
     }
   }
 
   async getSupplierInvoices(supplierId: number): Promise<PurchaseOrder[]> {
     if (USE_MOCK_DATA) {
-      console.log('📋 [API] Using mock supplier invoices data')
+
       await new Promise(resolve => setTimeout(resolve, 200))
-      
+
       const mockInvoices: PurchaseOrder[] = [
         {
           id: 1,
@@ -7345,27 +7276,25 @@ class AdminApiService {
           updated_at: '2024-01-20T14:30:00Z'
         }
       ]
-      
-      console.log('📋 [API] Returning mock supplier invoices:', mockInvoices)
+
       return mockInvoices
     }
-    
-    console.log('📋 [API] Making real API call for supplier invoices')
+
     try {
       const result = await this.request<PurchaseOrder[]>(`/admin/purchase-orders/supplier/${supplierId}`)
-      console.log('📋 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('📋 [API] Real API call failed:', error)
+
       throw error
     }
   }
 
   async getSupplierInvoiceStats(supplierId: number): Promise<SupplierInvoiceStats> {
     if (USE_MOCK_DATA) {
-      console.log('📋 [API] Using mock supplier invoice stats')
+
       await new Promise(resolve => setTimeout(resolve, 200))
-      
+
       const mockStats: SupplierInvoiceStats = {
         totalOrders: 2,
         totalAmount: 77000.00,
@@ -7410,27 +7339,25 @@ class AdminApiService {
           }
         ]
       }
-      
-      console.log('📋 [API] Returning mock supplier invoice stats:', mockStats)
+
       return mockStats
     }
-    
-    console.log('📋 [API] Making real API call for supplier invoice stats')
+
     try {
       const result = await this.request<SupplierInvoiceStats>(`/admin/purchase-orders/supplier/${supplierId}/stats`)
-      console.log('📋 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('📋 [API] Real API call failed:', error)
+
       throw error
     }
   }
 
   async getPurchaseOrderItems(purchaseOrderId: number): Promise<PurchaseOrderItem[]> {
     if (USE_MOCK_DATA) {
-      console.log('📋 [API] Using mock purchase order items data')
+
       await new Promise(resolve => setTimeout(resolve, 200))
-      
+
       const mockItems: PurchaseOrderItem[] = [
         {
           id: 1,
@@ -7477,18 +7404,16 @@ class AdminApiService {
           }
         }
       ]
-      
-      console.log('📋 [API] Returning mock purchase order items:', mockItems)
+
       return mockItems
     }
-    
-    console.log('📋 [API] Making real API call for purchase order items')
+
     try {
       const result = await this.request<PurchaseOrderItem[]>(`/admin/purchase-orders/${purchaseOrderId}/items`)
-      console.log('📋 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('📋 [API] Real API call failed:', error)
+
       throw error
     }
   }
@@ -7509,11 +7434,10 @@ class AdminApiService {
       tax_type?: string;
     }[];
   }): Promise<PurchaseOrder> {
-    console.log('📋 [API] Creating purchase order with items:', data)
-    
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       const mockPurchaseOrder: PurchaseOrder = {
         id: Math.floor(Math.random() * 1000) + 1,
         po_number: data.po_number,
@@ -7532,33 +7456,31 @@ class AdminApiService {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
-      
+
       mockPurchaseOrder.total_amount = mockPurchaseOrder.subtotal + mockPurchaseOrder.tax_amount
       mockPurchaseOrder.balance = mockPurchaseOrder.total_amount
-      
-      console.log('📋 [API] Mock purchase order created:', mockPurchaseOrder)
+
       return mockPurchaseOrder
     }
-    
+
     try {
       const result = await this.request<PurchaseOrder>('/admin/purchase-orders/create-with-items', {
         method: 'POST',
         body: JSON.stringify(data)
       })
-      console.log('📋 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('📋 [API] Real API call failed:', error)
+
       throw error
     }
   }
 
   async getPurchaseOrdersV2(page: number = 1, limit: number = 10, search?: string, status?: string): Promise<{ purchaseOrders: PurchaseOrder[], total: number }> {
-    console.log('📋 [API] Getting purchase orders:', { page, limit, search, status })
-    
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 200))
-      
+
       const mockPurchaseOrders: PurchaseOrder[] = [
         {
           id: 1,
@@ -7660,11 +7582,10 @@ class AdminApiService {
           }
         }
       ]
-      
-      console.log('📋 [API] Returning mock purchase orders:', mockPurchaseOrders)
+
       return { purchaseOrders: mockPurchaseOrders, total: mockPurchaseOrders.length }
     }
-    
+
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -7672,22 +7593,21 @@ class AdminApiService {
         ...(search && { search }),
         ...(status && { status })
       })
-      
+
       const result = await this.request<{ purchaseOrders: PurchaseOrder[], total: number }>(`/admin/purchase-orders?${params}`)
-      console.log('📋 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('📋 [API] Real API call failed:', error)
+
       throw error
     }
   }
 
   async getPurchaseOrderStats(): Promise<PurchaseOrderStats> {
-    console.log('📋 [API] Getting purchase order stats')
-    
+
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 200))
-      
+
       const mockStats: PurchaseOrderStats = {
         total: 25,
         draft: 8,
@@ -7698,17 +7618,16 @@ class AdminApiService {
         totalBalance: 45000.00,
         recentOrders: []
       }
-      
-      console.log('📋 [API] Returning mock purchase order stats:', mockStats)
+
       return mockStats
     }
-    
+
     try {
       const result = await this.request<PurchaseOrderStats>('/admin/purchase-orders/stats')
-      console.log('📋 [API] Real API call result:', result)
+
       return result
     } catch (error) {
-      console.error('📋 [API] Real API call failed:', error)
+
       throw error
     }
   }
@@ -7730,23 +7649,18 @@ class AdminApiService {
   }
 
   async updateTask(id: number, taskData: UpdateTaskDto): Promise<Task> {
-    console.log('🔧 [API] Updating task:', id, taskData)
-    console.log('🔧 [API] Auth token present:', !!this.authToken)
-    console.log('🔧 [API] isCompleted type:', typeof taskData.isCompleted, 'value:', taskData.isCompleted)
-    
+
     // Ensure isCompleted is properly converted to boolean
     const processedData = {
       ...taskData,
       isCompleted: taskData.isCompleted !== undefined ? Boolean(taskData.isCompleted) : undefined
     }
-    
-    console.log('🔧 [API] Processed data:', processedData)
-    
+
     const result = await this.request<Task>(`/admin/tasks/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(processedData)
     })
-    console.log('✅ [API] Task update response:', result)
+
     return result
   }
 
@@ -7774,59 +7688,37 @@ class AdminApiService {
 
   // Inventory Management (legacy alias — use getInventory() above)
   async getInventoryLegacy(): Promise<any[]> {
-    console.log('🔍 [API] Calling getInventory endpoint...')
+
     try {
       const result = await this.request<any[]>('/inventory')
-      console.log('✅ [API] getInventory success:', result)
-      console.log('📊 [API] Inventory data details:', {
-        totalItems: result.length,
-        storeIds: [...new Set(result.map(item => item.store_id))],
-        sampleItems: result.slice(0, 3)
-      })
+
       return result
     } catch (error: any) {
-      console.error('❌ [API] getInventory error:', error)
-      console.error('❌ [API] Error details:', {
-        message: error.message,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data
-      })
+
       throw error
     }
   }
 
   async getInventoryStores(): Promise<any[]> {
-    console.log('🏪 [API] Calling getInventoryStores endpoint...')
+
     try {
       const result = await this.request<any[]>('/admin/inventory/stores')
-      console.log('✅ [API] getInventoryStores success:', result)
-      console.log('🏪 [API] Inventory stores data details:', {
-        totalStores: result.length,
-        storeIds: result.map(store => store.id),
-        storeNames: result.map(store => store.store_name)
-      })
+
       return result
     } catch (error: any) {
-      console.error('❌ [API] getInventoryStores error:', error)
-      console.error('❌ [API] Inventory stores error details:', {
-        message: error.message,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data
-      })
+
       throw error
     }
   }
 
   async getInventoryProducts(): Promise<any[]> {
-    console.log('📦 [API] Calling getInventoryProducts endpoint...')
+
     try {
       const result = await this.request<any[]>('/admin/inventory/products')
-      console.log('✅ [API] getInventoryProducts success:', result)
+
       return result
     } catch (error: any) {
-      console.error('❌ [API] getInventoryProducts error:', error)
+
       throw error
     }
   }
@@ -7840,8 +7732,7 @@ class AdminApiService {
   }
 
   async updateInventoryQuantity(id: number, quantity: number): Promise<any> {
-    console.log(`🌐 [API] updateInventoryQuantity called with id=${id}, quantity=${quantity}`);
-    
+
     try {
       const result = await this.request<any>(`/admin/inventory/${id}/quantity`, {
         method: 'PUT',
@@ -7850,18 +7741,17 @@ class AdminApiService {
         },
         body: JSON.stringify({ quantity })
       });
-      
-      console.log(`✅ [API] updateInventoryQuantity successful:`, result);
+
       return result;
     } catch (error) {
-      console.error(`❌ [API] updateInventoryQuantity failed:`, error);
+
       throw error;
     }
   }
 
   // Aircrafts Management
   async getAircrafts(page: number = 1, limit: number = 50): Promise<{ aircrafts: Aircraft[], total: number }> {
-    console.log('✈️ [API] Getting aircrafts', { page, limit });
+
     return this.request<{ aircrafts: Aircraft[], total: number }>(`/admin/aircrafts?page=${page}&limit=${limit}`);
   }
 
@@ -7891,7 +7781,7 @@ class AdminApiService {
 
   // Destinations Management
   async getDestinations(page: number = 1, limit: number = 50): Promise<{ destinations: Destination[], total: number }> {
-    console.log('🌍 [API] Getting destinations', { page, limit });
+
     return this.request<{ destinations: Destination[], total: number }>(`/admin/destinations?page=${page}&limit=${limit}`);
   }
 
@@ -7921,7 +7811,7 @@ class AdminApiService {
 
   // Flight Series Management
   async getFlightSeries(page: number = 1, limit: number = 50): Promise<{ flightSeries: FlightSeries[], total: number }> {
-    console.log('✈️ [API] Getting flight series', { page, limit });
+
     return this.request<{ flightSeries: FlightSeries[], total: number }>(`/admin/flight-series?page=${page}&limit=${limit}`);
   }
 

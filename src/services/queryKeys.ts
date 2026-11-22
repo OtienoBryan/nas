@@ -11,5 +11,6 @@ export const reportKey = (name: string, f: object) => `reports:${name}:${JSON.st
 export const saleKey = (id: string) => `sales:${id}`
 export const staffPageKey = (q: object) => `staff:page:${JSON.stringify(q)}`
 export const staffMemberKey = (id: string) => `staff:${id}`
-export const tripsKey = (q: object) => `trips:${JSON.stringify(q)}`
+export const shiftSchedulesKey = (activeOnly: boolean, available = false) => `shift-schedules:${available ? 'available' : activeOnly ? 'active' : 'all'}`
+export const tripsKey =(q: object) => `trips:${JSON.stringify(q)}`
 export const PAYMENT_METHODS_KEY = 'payment-methods'

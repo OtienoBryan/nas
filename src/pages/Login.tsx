@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Lock, Mail, AlertCircle, CheckCircle } from 'lucide-react'
+import { Lock, Mail, AlertCircle, CheckCircle, Info } from 'lucide-react'
 
 const Login: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -11,6 +11,15 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [info, setInfo] = useState(() => {
+    try {
+      if (sessionStorage.getItem('logoutReason') === 'inactivity') {
+        sessionStorage.removeItem('logoutReason')
+        return 'You were signed out after a period of inactivity.'
+      }
+    } catch { /* ignore */ }
+    return ''
+  })
   const [retryCount, setRetryCount] = useState(0)
   const { login, isAuthenticated, user } = useAuth()
   const navigate = useNavigate()
@@ -150,6 +159,14 @@ const Login: React.FC = () => {
           </div>
           
           <form className="mt-6 space-y-5 flex-1 flex flex-col justify-center" onSubmit={handleSubmit}>
+            {/* Inactivity sign-out notice */}
+            {info && !error && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded-lg flex items-center space-x-2">
+                <Info className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                <p className="text-sm font-medium">{info}</p>
+              </div>
+            )}
+
             {/* Error Message */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg flex items-start space-x-2">

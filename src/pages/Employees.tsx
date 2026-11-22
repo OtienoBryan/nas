@@ -128,7 +128,6 @@ const EmployeeModal: React.FC<EmployeeModalProps> = ({
       await onSave(employeeData)
       onClose()
     } catch (error) {
-      console.error('Error saving employee:', error)
       alert(`Failed to save employee: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSaving(false)
@@ -336,17 +335,14 @@ const Employees: React.FC = () => {
 
   const fetchEmployees = async () => {
     try {
-      console.log('👥 [Employees] Fetching employees...')
       setLoading(true)
       const data = await adminApiService.getStaff()
-      console.log('✅ [Employees] Employees fetched:', data)
       // Filter employees that have role as 'attendant' or 'manager'
-      const filteredData = data.filter(emp => 
+      const filteredData = data.filter(emp =>
         emp.role === 'attendant' || emp.role === 'manager'
       )
       setEmployees(Array.isArray(filteredData) ? filteredData : [])
-    } catch (error) {
-      console.error('❌ [Employees] Error fetching employees:', error)
+    } catch {
       setEmployees([])
     } finally {
       setLoading(false)
@@ -355,12 +351,9 @@ const Employees: React.FC = () => {
 
   const fetchStations = async () => {
     try {
-      console.log('🚉 [Employees] Fetching stations...')
       const data = await adminApiService.getStations()
-      console.log('✅ [Employees] Stations fetched:', data)
       setStations(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [Employees] Error fetching stations:', error)
+    } catch {
       setStations([])
     }
   }
@@ -384,7 +377,6 @@ const Employees: React.FC = () => {
       }
       await fetchEmployees()
     } catch (error) {
-      console.error('Error saving employee:', error)
       throw error
     }
   }
@@ -399,7 +391,6 @@ const Employees: React.FC = () => {
       await adminApiService.deleteStaff(id)
       await fetchEmployees()
     } catch (error) {
-      console.error('Error deleting employee:', error)
       alert(`Failed to delete employee: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setDeletingEmployee(null)
@@ -422,7 +413,6 @@ const Employees: React.FC = () => {
       })
       await fetchEmployees()
     } catch (error) {
-      console.error('Error toggling employee status:', error)
       alert(`Failed to ${action} employee: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setTogglingEmployee(null)

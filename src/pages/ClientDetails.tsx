@@ -102,8 +102,8 @@ const ClientDetails: React.FC = () => {
       if (data) {
         setClient(mapConversionClient(data))
       }
-    } catch (error) {
-      console.error('Error fetching client:', error)
+    } catch {
+      // ignore
     } finally {
       setLoadingClient(false)
     }
@@ -114,8 +114,7 @@ const ClientDetails: React.FC = () => {
       setLoadingVehicles(true)
       const data = await adminApiService.getConversionVehiclesByClient(id)
       setVehicles(data || [])
-    } catch (error) {
-      console.error('Error fetching vehicles:', error)
+    } catch {
       setVehicles([])
     } finally {
       setLoadingVehicles(false)
@@ -127,8 +126,7 @@ const ClientDetails: React.FC = () => {
       setLoadingJobCards(true)
       const data = await adminApiService.getJobCards(undefined, id)
       setJobCards(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Error fetching job cards:', error)
+    } catch {
       setJobCards([])
     } finally {
       setLoadingJobCards(false)

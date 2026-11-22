@@ -101,7 +101,6 @@ const ConversionModal: React.FC<ConversionModalProps> = ({ isOpen, onClose, onSa
       await onSave(conversionData)
       onClose()
     } catch (error) {
-      console.error('Error saving conversion:', error)
       alert(`Failed to save conversion: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSaving(false)
@@ -570,7 +569,6 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, conversi
       await onSave(conversion.id, dateTime)
       onClose()
     } catch (error) {
-      console.error('Error scheduling conversion:', error)
       alert(`Failed to schedule conversion: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSaving(false)
@@ -679,7 +677,6 @@ const ApprovalModal: React.FC<ApprovalModalProps> = ({ isOpen, onClose, conversi
       onClose()
       setComment('')
     } catch (error) {
-      console.error('Error updating conversion status:', error)
       alert(`Failed to ${status} conversion: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSaving(false)
@@ -798,7 +795,6 @@ const CompleteConversionModal: React.FC<CompleteConversionModalProps> = ({ isOpe
       setDescription('')
       setConversionDate('')
     } catch (error) {
-      console.error('Error completing conversion:', error)
       alert(`Failed to complete conversion: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSaving(false)
@@ -913,13 +909,10 @@ const ConversionsPage: React.FC = () => {
 
   const fetchConversions = async () => {
     try {
-      console.log('🔧 [ConversionsPage] Fetching conversions...')
       setLoading(true)
       const data = await adminApiService.getConversions()
-      console.log('✅ [ConversionsPage] Conversions fetched:', data)
       setConversions(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('❌ [ConversionsPage] Error fetching conversions:', error)
+    } catch {
       setConversions([])
     } finally {
       setLoading(false)
@@ -963,8 +956,7 @@ const ConversionsPage: React.FC = () => {
         const scheduledDate = new Date(conversion.scheduledDate)
         const scheduledDateStr = `${scheduledDate.getFullYear()}-${String(scheduledDate.getMonth() + 1).padStart(2, '0')}-${String(scheduledDate.getDate()).padStart(2, '0')}`
         if (scheduledDateStr !== filterDate) return false
-      } catch (error) {
-        console.error('Error parsing date:', error)
+      } catch {
         return false
       }
     }
@@ -993,8 +985,7 @@ const ConversionsPage: React.FC = () => {
           endDate.setHours(23, 59, 59, 999) // End of day
           if (scheduledDate > endDate) return false
         }
-      } catch (error) {
-        console.error('Error parsing date range:', error)
+      } catch {
         return false
       }
     }

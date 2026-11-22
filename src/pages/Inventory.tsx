@@ -441,7 +441,6 @@ const Inventory: React.FC = () => {
       await adminApiService.updatePart(partId, { status })
       setParts(prev => prev.map(p => p.id === partId ? { ...p, status } : p))
     } catch (error) {
-      console.error('Error updating status:', error)
       alert(`Failed to update status: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setUpdatingStatusId(null)

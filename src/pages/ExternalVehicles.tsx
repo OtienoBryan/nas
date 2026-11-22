@@ -177,7 +177,6 @@ const ExternalVehicleModal: React.FC<ModalProps> = ({ isOpen, onClose, vehicle, 
       await onSave()
       onClose()
     } catch (error) {
-      console.error('Error saving external vehicle:', error)
       alert(`Failed to save vehicle: ${(error as Error).message || 'Unknown error'}`)
     } finally {
       setSaving(false)
@@ -421,7 +420,6 @@ const ExternalVehicles: React.FC = () => {
       setVehicles(Array.isArray(v) ? v : [])
       setOwners(Array.isArray(o) ? o : [])
     } catch (error) {
-      console.error('Error loading external vehicles:', error)
       alert(`Failed to load external vehicles: ${(error as Error).message || 'Unknown error'}`)
     } finally {
       setLoading(false)

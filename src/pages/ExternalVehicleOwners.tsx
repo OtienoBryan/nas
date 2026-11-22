@@ -23,7 +23,6 @@ const ExternalVehicleOwners: React.FC = () => {
       .getExternalVehicleOwners()
       .then((o) => setOwners(Array.isArray(o) ? o : []))
       .catch((error) => {
-        console.error('Error loading owners:', error)
         alert(`Failed to load owners: ${(error as Error).message || 'Unknown error'}`)
       })
       .finally(() => setLoading(false))

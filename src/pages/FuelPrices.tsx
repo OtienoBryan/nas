@@ -40,8 +40,8 @@ const FuelPrices: React.FC = () => {
       const stations = await adminApiService.getStations()
       const foundStation = stations.find(s => s.id === Number(stationId))
       setStation(foundStation || null)
-    } catch (error) {
-      console.error('Error fetching station:', error)
+    } catch {
+      // ignore
     }
   }
 
@@ -51,8 +51,7 @@ const FuelPrices: React.FC = () => {
       setLoading(true)
       const data = await adminApiService.getFuelPricesByStation(Number(stationId))
       setHistory(data)
-    } catch (error) {
-      console.error('Error fetching fuel price history:', error)
+    } catch {
       setHistory([])
     } finally {
       setLoading(false)
@@ -75,7 +74,6 @@ const FuelPrices: React.FC = () => {
       await fetchStation() // Refresh station to get updated price
       setFormData({ price: '', notes: '' })
     } catch (error) {
-      console.error('Error saving fuel price:', error)
       alert(`Failed to save fuel price: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSaving(false)
@@ -107,7 +105,6 @@ const FuelPrices: React.FC = () => {
       setEditingPrice(null)
       setEditFormData({ price: '', notes: '' })
     } catch (error) {
-      console.error('Error updating fuel price:', error)
       alert(`Failed to update fuel price: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setSaving(false)
@@ -125,7 +122,6 @@ const FuelPrices: React.FC = () => {
       await fetchHistory()
       await fetchStation() // Refresh station to get updated price
     } catch (error) {
-      console.error('Error deleting fuel price:', error)
       alert(`Failed to delete fuel price: ${(error as any).message || 'Unknown error'}`)
     } finally {
       setDeletingPrice(null)
